@@ -15,10 +15,14 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+////////////////////////
+////device dependent////
+//make sure that NPROC0*...*NPROC3 = number of processor available on your device// 
 #define NPROC0 2
 #define NPROC1 1
 #define NPROC2 1
 #define NPROC3 1
+///////////////////////
 
 #define L0 8
 #define L1 8
@@ -30,7 +34,7 @@
 #define NPROC2_BLK 1
 #define NPROC3_BLK 1
 
-#define NAME_SIZE 128
+#define NAME_SIZE 512 /*modified from 128*/
 
 /****************************** do not change *********************************/
 

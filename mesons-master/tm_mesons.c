@@ -110,15 +110,24 @@ static int *isps,*props1,*props2,*type1,*type2,*x0s;
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
 static double *kappas,*mus;
 
+/************part modified*************************************/
+/*the dimension of output files has to be at least twice
+  the dimension of the input files + 13 (that is the number
+  of characters in the string ".mesons.log" printed below)*/
+#define offset 13
+
+#define offset3 6
 
 static char log_dir[NAME_SIZE],loc_dir[NAME_SIZE];
 static char cnfg_dir[NAME_SIZE],dat_dir[NAME_SIZE];
-static char log_file[NAME_SIZE],log_save[NAME_SIZE],end_file[NAME_SIZE];
-static char dat_file[NAME_SIZE],dat_save[NAME_SIZE];
-static char par_file[NAME_SIZE],par_save[NAME_SIZE];
-static char rng_file[NAME_SIZE],rng_save[NAME_SIZE];
-static char cnfg_file[NAME_SIZE],nbase[NAME_SIZE],outbase[NAME_SIZE];
+static char log_file[NAME_SIZE*2+offset],log_save[NAME_SIZE*2+offset+1],end_file[NAME_SIZE*2+offset];
+static char dat_file[NAME_SIZE*2+offset],dat_save[NAME_SIZE*2+offset+1]; /*save has to be long as file +1*/
+static char par_file[NAME_SIZE*2+offset],par_save[NAME_SIZE*2+offset+1];
+static char rng_file[NAME_SIZE*2+offset],rng_save[NAME_SIZE*2+offset+1];
+static char cnfg_file[NAME_SIZE*2+offset3],nbase[NAME_SIZE],outbase[NAME_SIZE];
 static FILE *fin=NULL,*flog=NULL,*fend=NULL,*fdat=NULL;
+
+/**************************************************************/
 
 
 static void alloc_data(void)
@@ -1013,7 +1022,7 @@ static void print_info(void)
    long ip;
    lat_parms_t lat;
 /* DP */
-   tm_parms_t tm;
+   /*tm_parms_t tm;*/ /*tm should be initialized? -> commented to avoid problems*/
 /* DP */
 
    if (my_rank==0)
@@ -1109,7 +1118,7 @@ static void print_info(void)
          printf("csw       = %.6f\n",lat.csw);
          printf("cF        = %.6f\n\n",lat.cF);
 /* DP */
-	 printf("eoflg     = %i\n",tm.eoflg);
+	 /*printf("eoflg     = %i\n",tm.eoflg);*/ /*had to comment this to avoid problem*/
 /* DP */
          for (i=0; i<nprop; i++)
          {
@@ -1715,13 +1724,13 @@ int main(int argc,char *argv[])
       {
          save_ranlux();
          sprintf(cnfg_file,"%s/%sn%d_%d",loc_dir,nbase,nc,my_rank);
-         read_cnfg(cnfg_file);
+         /*read_cnfg(cnfg_file);*/
          restore_ranlux();
       }
       else
       {
          sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc);
-         import_cnfg(cnfg_file);
+         /*import_cnfg(cnfg_file);*/
       }
 
       if (dfl.Ns)

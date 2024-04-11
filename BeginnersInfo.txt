@@ -1,0 +1,27 @@
+Guide to the code for beginners. Follow the following stes.
+
+1) Install OpenMpi following the instruction written in OpenMPIInstall.pdf
+
+2) Modify the number of processes of the QCD simulation as to match the number of cores (CPU) on your device
+    - run (on linux) "nproc --all" to see how many processors you have on your device
+    - go to  openQCD-1.2 > include > global.h
+    - make sure that NPROC0 * NPROC1 * NPROC2 * NPROC3 equal the number of processors you have available
+    - if that is not the case modify NPROC0, NPROC1, NPROC2, NPROC3
+
+3) Modify the makefile in mesons-master as to match the specifics of your device
+    - open mesons-master > Makefile
+    - uncomment MPI_HOME and GCC and set them respectively to be the directory in which you have installed openmpi and your C compiler
+    - modify CC and put it equal to the path to mpicc on your device (mine was /usr/bin/mpicc)
+
+4) To test that everything works try to compile without reading the gauge configurations
+    - go to mesons-master > tm_mesons.c and comment the lines "read_cnfg(cnfg_file);" and "import_cnfg(cnfg_file);"
+    - run the makefile
+
+Modifications I had to make to compile:
+
+1) change size of some output buffers in tm_mesons.c
+2) comment tm_params_t tm at line 1025 of tm_mesons.c to avoid unused and unitialized variable errors
+
+Extra Notes:
+
+1) NAME_SIZE has to be modified in meson-master > build > include > global.h not in openQCD-1.2 > include > global.h
