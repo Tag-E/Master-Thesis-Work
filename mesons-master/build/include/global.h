@@ -15,22 +15,22 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#define NPROC0 8
-#define NPROC1 4
-#define NPROC2 4
-#define NPROC3 2
+#define NPROC0 2
+#define NPROC1 1
+#define NPROC2 1
+#define NPROC3 1
 
-#define L0 12
+#define L0 8
 #define L1 8
 #define L2 8
-#define L3 16
+#define L3 8
 
-#define NPROC0_BLK 2
-#define NPROC1_BLK 2
-#define NPROC2_BLK 2
-#define NPROC3_BLK 2
+#define NPROC0_BLK 1 /*set to 1 from 2*/
+#define NPROC1_BLK 1
+#define NPROC2_BLK 1
+#define NPROC3_BLK 1
 
-#define NAME_SIZE 256
+#define NAME_SIZE 256 /*modified from 128*/
 
 /****************************** do not change *********************************/
 

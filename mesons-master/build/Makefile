@@ -17,7 +17,8 @@ all: rmxeq mkdep mkxeq
 .PHONY: all
 
 # MPI_HOME=/soft/haswell/openmpi/1.10.2 #Da scommentare
-# GCC=gcc
+MPI_HOME = /usr/lib/x86_64-linux-gnu/openmpi
+GCC=gcc
 
 # main programs and modules to be compiled
 
@@ -126,7 +127,8 @@ LIBPATH=$(MPI_HOME)/lib
 ############################## do not change ###################################
 
 SHELL=/bin/bash
-CC=$(MPI_HOME)/bin/mpicc
+#CC=$(MPI_HOME)/bin/mpicc
+CC=/usr/bin/mpicc
 CLINKER=$(CC)
 
 PGMS= $(MAIN) $(MODULES)
