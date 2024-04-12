@@ -25,3 +25,10 @@ Modifications I had to make to compile:
 Extra Notes:
 
 1) NAME_SIZE has to be modified in meson-master > build > include > global.h not in openQCD-1.2 > include > global.h
+
+To execute:
+
+1) go to mesons-master > build and create two directories called "dat" and "log"
+2) check that in mesons-master > mesons.in the variables x0 are not bigger than L0 defined in mesons-master > build > include > global.h (or maybe the same file in openqcd) 
+3) try to run tm_mesons using the command "mpirun -np 2 tm_mesons -i ../mesons.in " whith 2 substituted by ypur numper of processors
+4) if MPI_ABORTS gets invoked you can read where the error comes from by looking inside mesons-master > build > STARTUP_ERROR

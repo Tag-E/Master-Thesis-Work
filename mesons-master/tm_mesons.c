@@ -498,7 +498,7 @@ static void read_lat_parms(void)
       read_line("csw","%lf",&csw);
       read_line("cF","%lf",&cF);
 /* DP */      
-      read_line("eoflg","%d",&eoflg);
+      read_line("eoflg","%d",&eoflg); /**what is eoflg ?????*/
 /* DP */
       error_root(nprop<1,1,"read_lat_parms [mesons.c]",
                  "Specified nprop must be larger than zero");
@@ -566,7 +566,7 @@ static void read_lat_parms(void)
          find_section(tmpstring);
          read_line("kappa","%lf",&kappas[iprop]);
          read_line("isp","%d",&isps[iprop]);
-	 read_line("mus","%lf",&mus[iprop]);
+	 read_line("mus","%lf",&mus[iprop]);   /**what is mus ????*/
       }
       for(icorr=0; icorr<ncorr; icorr++)
       {
