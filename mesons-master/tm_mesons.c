@@ -62,6 +62,9 @@
 #define N2 (NPROC2*L2)
 #define N3 (NPROC3*L3)
 
+
+/**declaration of global variables**/
+
 static char line[NAME_SIZE+1];
 
 #define MAX(n,m) \
@@ -103,8 +106,23 @@ static struct
    int **type;   /* type index of each x0 and propagator  */
 } proplist;
 
+/*
+   - my_rank : rank of the process (unique identifier of the process inside the communicator group)
+   - noexp : True if the option -noexp is set by command line, False(0) otherwise 
+   - append :  True if the option -a is set by command line, False(0) otherwise
+   - norng : True if the option -norng is set by command line, False(0) otherwise
+   - endian : BIG_ENDIAN, LITTLE_ENDIAN or UNKOWN_ENDIAN depending on the machine
+*/
 static int my_rank,noexp,append,norng,endian;
+/*
+   - first : index of the first configuration
+   - last : inde of the last configuration
+   - step : step used in the scanning of configurations (?)
+*/
 static int first,last,step;
+/*
+   - level, seed : parameters of the random generator
+*/
 static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
@@ -124,7 +142,16 @@ static char log_file[NAME_SIZE*2+offset],log_save[NAME_SIZE*2+offset+1],end_file
 static char dat_file[NAME_SIZE*2+offset],dat_save[NAME_SIZE*2+offset+1]; /*save has to be long as file +1*/
 static char par_file[NAME_SIZE*2+offset],par_save[NAME_SIZE*2+offset+1];
 static char rng_file[NAME_SIZE*2+offset],rng_save[NAME_SIZE*2+offset+1];
+/*
+   - nbase : name given to the run
+   - outbase : name given to output files (=nbase by default)
+*/
 static char cnfg_file[NAME_SIZE*2+offset3],nbase[NAME_SIZE],outbase[NAME_SIZE];
+/*
+   - fin : input file where the specifics of the simulation are written
+   - flog : log file used as stdout where execution errors get written
+   - fdat : binary parameters file
+*/
 static FILE *fin=NULL,*flog=NULL,*fend=NULL,*fdat=NULL;
 
 /**************************************************************/
@@ -398,42 +425,76 @@ static int read_data(void)
    return 1;
 }
 
+
+/*function reading directories' names and other inputs from input file*/
 static void read_dirs(void)
 {
+
+   /*reading from input file is done only on process 0*/
+
    if (my_rank==0)
    {
-      find_section("Run name");
-      read_line("name","%s",nbase);
-      read_line_opt("output",nbase,"%s",outbase);
 
-      find_section("Directories");
-      read_line("log_dir","%s",log_dir);
+      /*reading of the "run name" section:
+         - nbase : set to the string written after "name"
+         - outbase : set to be the string written after "output", being an optional
+           parameter if nothing is written then it is set to be equal to nbase 
+      */
 
-      if (noexp)
+      find_section("Run name"); /*pointer reading from input file is set the line after the string"[Run name]"*/
+      read_line("name","%s",nbase); /*nbase is set to the name of the run*/
+      read_line_opt("output",nbase,"%s",outbase); /*outbase is set to be the name used for output files*/
+
+      /*reading of "Directories section":
+        - log and dat dir are always read
+        - if noexp is set loc dir is read while cnfg is not
+        - if noexp is not set the opposite is true
+      */
+
+      find_section("Directories"); /*pointer reading from input file is set after the string "[Directories]"*/
+      read_line("log_dir","%s",log_dir); /*log_dir is set to the string written after "log_dir"*/
+
+      if (noexp) /*if configurations are in the imported file format...*/
       {
-         read_line("loc_dir","%s",loc_dir);
-         cnfg_dir[0]='\0';
+         read_line("loc_dir","%s",loc_dir); /*loc_dir is set to the string written after "loc_dir"*/
+         cnfg_dir[0]='\0'; /*cnfg_dir is set to '\0' (is not read)*/
       }
-      else
+      else /*if configuration are in the usual exported file format...*/
       {
-         read_line("cnfg_dir","%s",cnfg_dir);
-         loc_dir[0]='\0';
+         read_line("cnfg_dir","%s",cnfg_dir); /*cnfg_dir is set to the string written after "cnfg_dir"*/
+         loc_dir[0]='\0'; /*loc_dir is set to '\0' (is not read)*/
       }
 
-      read_line("dat_dir","%s",dat_dir);
+      read_line("dat_dir","%s",dat_dir); /*dat_dir is set to the string written after "dat_dir"*/
 
-      find_section("Configurations");
-      read_line("first","%d",&first);
-      read_line("last","%d",&last);
-      read_line("step","%d",&step);
+      /*reading of "Configurations" section:
+        - first is set to the index of the firt configuration
+        - last is set to the index of the last configuration
+        - step is set to the step at which configurations are
+          scanned (?)
+      */
 
-      find_section("Random number generator");
-      read_line("level","%d",&level);
-      read_line("seed","%d",&seed);
+      find_section("Configurations"); /*pointer reading from input file is set after the string "Configurations"*/
+      read_line("first","%d",&first); /*first is set to the integer written after "first"*/
+      read_line("last","%d",&last); /*last is set to the integer written after "last"*/
+      read_line("step","%d",&step); /*step is set to the integer written after "step"*/
 
+      /*reading of "Random number generator" section:
+        -level and seed are set to the specified integers
+      */
+
+      find_section("Random number generator"); /*pointer reading from input file is set after the string "Random number generator"*/
+      read_line("level","%d",&level); /*level is set t the specified integer*/
+      read_line("seed","%d",&seed); /*seed is set t the specified integer*/
+
+      /*an error is raised if first, last and step are not valid:
+        last-first should be non negative and an integer multiple of step*/
       error_root((last<first)||(step<1)||(((last-first)%step)!=0),1,
                  "read_dirs [mesons.c]","Improper configuration range");
    }
+
+   /*all the parameters read during process 0 are broadcasted
+     to all the other processes of the group*/
 
    MPI_Bcast(nbase,NAME_SIZE,MPI_CHAR,0,MPI_COMM_WORLD);
    MPI_Bcast(outbase,NAME_SIZE,MPI_CHAR,0,MPI_COMM_WORLD);
@@ -803,40 +864,61 @@ static void read_solvers(void)
 }
 
 
+/*function to determine the global variables of the
+  simulatiom from input*/
 static void read_infile(int argc,char *argv[])
 {
-   int ifile;
+   int ifile; /*position in argv[] of the -ifile option*/
 
-   if (my_rank==0)
+   /*reading of the input from command line during the 
+     first process*/
+   
+   if (my_rank==0) /*--> true on the first process*/
    {
+      /*setting the file STARTUP_ERROR as the place where
+        execution output (errors) gets written*/
       flog=freopen("STARTUP_ERROR","w",stdout);
- 
-      ifile=find_opt(argc,argv,"-i");
-      endian=endianness();
 
+      /*reading input from command line*/
+ 
+      ifile=find_opt(argc,argv,"-i"); /*option to specify input file*/
+      endian=endianness(); /*endianness of the machine*/
+
+      /*gives an error if input file not specified*/
       error_root((ifile==0)||(ifile==(argc-1)),1,"read_infile [mesons.c]",
                  "Syntax: mesons -i <input file> [-noexp] [-a [-norng]]");
 
+      /*gives an error if the machine has unkown endianness*/
       error_root(endian==UNKNOWN_ENDIAN,1,"read_infile [mesons.c]",
                  "Machine has unknown endianness");
 
-      noexp=find_opt(argc,argv,"-noexp");
-      append=find_opt(argc,argv,"-a");
-      norng=find_opt(argc,argv,"-norng");
+      noexp=find_opt(argc,argv,"-noexp"); /*option to specify configurations reading*/
+      append=find_opt(argc,argv,"-a"); /*option to specify output appending*/
+      norng=find_opt(argc,argv,"-norng"); /*option to specify generator initialization*/
 
+      /*opening the input file*/
+
+      /*setting stdin to be the input file,
+        gives an error if the input file cannot be open*/
       fin=freopen(argv[ifile+1],"r",stdin);
       error_root(fin==NULL,1,"read_infile [mesons.c]",
                  "Unable to open input file");
    }
+
+   /*broadcast from process 0 to all the other processes
+     in the communicator of the input parameters just read*/
 
    MPI_Bcast(&endian,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&noexp,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&append,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&norng,1,MPI_INT,0,MPI_COMM_WORLD);
 
-   read_dirs();
-   setup_files();
+   /*reading of parameters from the input file (done only in process 0)*/
 
+   read_dirs(); /*reads input file and set global variables*/
+   setup_files(); /*initialization of files specified in the input file*/
+
+   /*on process 0 open binary parameters file*/
    if (my_rank==0)
    {
       if (append)
@@ -847,16 +929,20 @@ static void read_infile(int argc,char *argv[])
       error_root(fdat==NULL,1,"read_infile [mesons.c]",
                  "Unable to open parameter file");
    }
-   read_lat_parms();
-   read_solvers();
 
+   read_lat_parms(); /*reads lattice parameters from input file*/
+   read_solvers(); /*reads solver parameters from input file*/
+
+   /*closing opened files*/
+
+   /*on process 0 closes input and parameter file*/
    if (my_rank==0)
    {
       fclose(fin);
       fclose(fdat);
 
       if (append==0)
-         copy_file(par_file,par_save);
+         copy_file(par_file,par_save); /*save binary parameter file to par_save file*/
    }
 }
 
@@ -1683,17 +1769,26 @@ static void check_endflag(int *iend)
 }
 
 
+/***** main of the program *****/
+
 int main(int argc,char *argv[])
 {
+
+   /** definition of variables **/
+
    int nc,iend,status[4];
    int nws,nwsd,nwv,nwvd;
    double wt1,wt2,wtavg;
    dfl_parms_t dfl;
 
-   MPI_Init(&argc,&argv);
-   MPI_Comm_rank(MPI_COMM_WORLD,&my_rank);
+   /** openMPI inizialization **/
+
+   MPI_Init(&argc,&argv); /*Inizialization of MPI execution environment*/
+   MPI_Comm_rank(MPI_COMM_WORLD,&my_rank); /*setting my_rank to the rank of the calling process*/
    
-   read_infile(argc,argv);
+   /** file and simulation parameters initialization **/
+
+   read_infile(argc,argv); /*read input from command line and input file*/
    alloc_data();
    check_files();
    print_info();
