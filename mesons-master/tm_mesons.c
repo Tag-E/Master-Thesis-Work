@@ -71,22 +71,23 @@ static char line[NAME_SIZE+1];
    if ((n)<(m)) \
       (n)=(m)
 
+/*struct containing the parameters of the input file related to the correlators*/
 static struct
 {
-   int ncorr;
-   int nnoise;
-   int tvals;
-   int noisetype;
-   double *kappa1;
-   double *kappa2;
+   int ncorr; /*number of correlators*/
+   int nnoise; /*number of noise vector for each configuration*/
+   int tvals; /*= size of time lattice spaces times number of time processes (??)*/
+   int noisetype; /*type of noise vectors, either U1, Z2 or GAUSS*/
+   double *kappa1; /*kappa of the first kind of quark, one for each correlator*/
+   double *kappa2; /*kappa of the second kind of quark, one for each correlator*/
 /* DP */ 
-   double *mus1;
-   double *mus2;
+   double *mus1; /*mus of the first kind of quark (??), one for each correlator*/
+   double *mus2; /*mus of the second kind of quark (??), one for each correlator*/
 /* DP */
-   int *type1;
-   int *type2;
-   int *x0;
-   int *isreal;
+   int *type1; /*array containing the Dirac structure of the first meson in each correlator*/
+   int *type2; /*array containing the Dirac structure of the secnd meson in each correlator*/
+   int *x0; /*array containing the source time slice of each correlator*/
+   int *isreal; /*array containing 1 for pion-pion correlators, 0 otherwise (??)*/
 } file_head;
 
 static struct
@@ -122,10 +123,26 @@ static int my_rank,noexp,append,norng,endian;
 static int first,last,step;
 /*
    - level, seed : parameters of the random generator
+   - nprop, ncorr : number of different quark lines and of different correlators
+   - nnoise : number of noise vector for each configuration
+   - noisetype : either U1, Z2 or GAUSS (expand to something like 1,2,3)
+   - tvals : size of time lattice spaces times number of time processes (??)
 */
 static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
+/*
+   - isps : array containing the solver id for each propagator
+   - props1 : array containing the type of the first quark appearing in each correlator
+   - props2 : array containing the type of the second quark appearing in each correlator
+   - type1 : array containing the Dirac structure of the first meson in each correlator
+   - type2 : array containing the Dirac structure of the second meson in each correlator
+   - x0s : array containing the time solice of the source of each correlator
+*/
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
+/*
+   - kappas : array containing the value of kappa for each propagator
+   - mus : array containing the value of mus for each propagator (??)
+*/
 static double *kappas,*mus;
 
 /************part modified*************************************/
@@ -135,6 +152,12 @@ static double *kappas,*mus;
 #define offset 13
 
 #define offset3 6
+
+/*names of directories and files used:
+   - _dir are the names of the directories used
+   - _file and the names of the files produced
+   - _save the names of the related backup files
+*/
 
 static char log_dir[NAME_SIZE],loc_dir[NAME_SIZE];
 static char cnfg_dir[NAME_SIZE],dat_dir[NAME_SIZE];
@@ -512,9 +535,10 @@ static void read_dirs(void)
    MPI_Bcast(&seed,1,MPI_INT,0,MPI_COMM_WORLD);
 }
 
-
+/*function for files inizialization according to input file specifications*/
 static void setup_files(void)
 {
+   /*lenght check of the string loc_dir or cnfg_dir*/
    if (noexp)
       error_root(name_size("%s/%sn%d_%d",loc_dir,nbase,last,NPROC-1)>=NAME_SIZE,
                  1,"setup_files [mesons.c]","loc_dir name is too long");
@@ -522,13 +546,17 @@ static void setup_files(void)
       error_root(name_size("%s/%sn%d",cnfg_dir,nbase,last)>=NAME_SIZE,
                  1,"setup_files [mesons.c]","cnfg_dir name is too long");
 
+   /*check on accessibility (only on process 0) and name lenght of dat_dir*/
    check_dir_root(dat_dir);
    error_root(name_size("%s/%s.mesons.dat~",dat_dir,outbase)>=NAME_SIZE,
               1,"setup_files [mesons.c]","dat_dir name is too long");
 
+   /*check on accessibility (only on process 0) and name lenght of log_dir*/
    check_dir_root(log_dir);
    error_root(name_size("%s/%s.mesons.log~",log_dir,outbase)>=NAME_SIZE,
               1,"setup_files [mesons.c]","log_dir name is too long");
+
+   /*assignment of files' names based on input file specifications*/
 
    sprintf(log_file,"%s/%s.mesons.log",log_dir,outbase);
    sprintf(end_file,"%s/%s.mesons.end",log_dir,outbase);
@@ -542,25 +570,39 @@ static void setup_files(void)
 }
 
 
+/*function to read lattice parameters from input file
+and assignin them to global variables*/
 static void read_lat_parms(void)
 {
-   double csw,cF;
-   char tmpstring[NAME_SIZE];
-   char tmpstring2[NAME_SIZE];
-   int iprop,icorr,eoflg;
+
+   /*declaration of temporary variables used for reading parameters*/
+
+   double csw,cF; /*coefficient of sw term (csw) and of Fermion O(a) boundary counterterm (cF)*/
+   char tmpstring[NAME_SIZE]; /*temporary string used for reading*/
+   char tmpstring2[NAME_SIZE]; /*temporary string used for reading*/
+   int iprop,icorr,eoflg; /*index running on propagators (iprop), correlators (icorr), twisted mass flag (eoflg)*/
+
+   /*on process 0 reads parameters from file*/
 
    if (my_rank==0)
    {
-      find_section("Measurements");
-      read_line("nprop","%d",&nprop);
-      read_line("ncorr","%d",&ncorr);
-      read_line("nnoise","%d",&nnoise);
-      read_line("noise_type","%s",tmpstring);
-      read_line("csw","%lf",&csw);
-      read_line("cF","%lf",&cF);
+
+      /*reading of the [Measurements] section from input file*/
+
+      find_section("Measurements"); /*reading pointer set the line after the string "[Measurements]"*/
+      read_line("nprop","%d",&nprop); /*nprop is set to the number of different quark lines written in the input file*/
+      read_line("ncorr","%d",&ncorr); /*ncorr is set to the number of different correlators written in the input file*/
+      read_line("nnoise","%d",&nnoise); /*nnoise is set to the number of noise vector for each configuration*/
+      read_line("noise_type","%s",tmpstring); /*noise_type set to U1, Z2 or GAUSS according to input file*/
+      read_line("csw","%lf",&csw); /*csw coefficient read from input file*/
+      read_line("cF","%lf",&cF); /*cF coefficient read from input file*/
 /* DP */      
-      read_line("eoflg","%d",&eoflg); /**what is eoflg ?????*/
+      read_line("eoflg","%d",&eoflg); /*eoflg read from input file*/
 /* DP */
+
+      /*check on the validity of the parameters read from input file*/
+
+      /*nprop, ncorr and nnoise must be positive integers*/
       error_root(nprop<1,1,"read_lat_parms [mesons.c]",
                  "Specified nprop must be larger than zero");
       error_root(ncorr<1,1,"read_lat_parms [mesons.c]",
@@ -569,11 +611,14 @@ static void read_lat_parms(void)
                  "Specified nnoise must be larger than zero");
 
 /* DP */
+      /*eoflg must be either 0 or 1*/
       error_root(eoflg<0,1,"read_lat_parms [mesons.c]",
 		 "Specified eoflg must be 0,1");
       error_root(eoflg>1,1,"read_lat_parms [mesons.c]",
 		 "Specified eoflg must be 0,1");
 /* DP */
+
+       /*noise_type must be either U1, Z2 or GAUSS*/
       noisetype=-1;
       if(strcmp(tmpstring,"Z2")==0)
          noisetype=Z2_NOISE;
@@ -584,6 +629,10 @@ static void read_lat_parms(void)
       error_root(noisetype==-1,1,"read_lat_parms [mesons.c]",
                  "Unknown noise type");
    }
+
+   /*broadcast of parameters read on process 0 to
+   all other proceses of the communicator group*/
+
    MPI_Bcast(&nprop,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&ncorr,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&nnoise,1,MPI_INT,0,MPI_COMM_WORLD);
@@ -593,57 +642,75 @@ static void read_lat_parms(void)
 /* DP */
    MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD);
 /* DP */
-   kappas=malloc(nprop*sizeof(double));
-   mus=malloc(nprop*sizeof(double));
-   isps=malloc(nprop*sizeof(int));
-   props1=malloc(ncorr*sizeof(int));
-   props2=malloc(ncorr*sizeof(int));
-   type1=malloc(ncorr*sizeof(int));
-   type2=malloc(ncorr*sizeof(int));
-   x0s=malloc(ncorr*sizeof(int));
-   file_head.kappa1=malloc(ncorr*sizeof(double));
-   file_head.kappa2=malloc(ncorr*sizeof(double));
+
+   /*memory allocation for all the parameters needed
+   by the various propagators and correlator*/
+
+   kappas=malloc(nprop*sizeof(double)); /*one kappa for each propagator*/
+   mus=malloc(nprop*sizeof(double)); /*one mus for each propagator*/
+   isps=malloc(nprop*sizeof(int)); /*one solver id for each propagator*/
+   props1=malloc(ncorr*sizeof(int)); /*type of first quark, one for each correlator*/
+   props2=malloc(ncorr*sizeof(int)); /*type of second quark, one for each correlator*/
+   type1=malloc(ncorr*sizeof(int)); /*Dirac structure of first meson, one for each correlator*/
+   type2=malloc(ncorr*sizeof(int)); /*Dirac structure of second meson, one for each correlator*/
+   x0s=malloc(ncorr*sizeof(int)); /*time slice of the source, one for each correlator*/
+   file_head.kappa1=malloc(ncorr*sizeof(double)); /*kappa of the first kind of quark, one for each correlator*/
+   file_head.kappa2=malloc(ncorr*sizeof(double)); /*kappa of the second kind of quark, one for each correlator*/
 /* DP */   
-   file_head.mus1=malloc(ncorr*sizeof(double));
-   file_head.mus2=malloc(ncorr*sizeof(double));
+   file_head.mus1=malloc(ncorr*sizeof(double)); /*mus (??) of the first kind of quark, one for each correlator*/
+   file_head.mus2=malloc(ncorr*sizeof(double)); /*mus (??) of the second kind of quark, one for each correlator*/
 /* DP */
 
-   file_head.type1=type1;
-   file_head.type2=type2;
-   file_head.x0=x0s;
-   file_head.isreal=malloc(ncorr*sizeof(int));
+   file_head.type1=type1; /*Dirac structure of first meson, one for each correlator*/
+   file_head.type2=type2; /*Dirac structure of second meson, one for each correlator*/
+   file_head.x0=x0s; /*time slice of the source, one for each correlator*/
+   file_head.isreal=malloc(ncorr*sizeof(int)); /*array with either 1 (pion-pion case) or 0 for each correlator (??)*/
 
+   /*check of successful memory allocation*/
+   /*should I add here a check on mus1 and mus2 ???*/ /*????????????????*/
    error((kappas==NULL)||(mus==NULL)||(isps==NULL)||(props1==NULL)||
          (props2==NULL)||(type1==NULL)||(type2==NULL)||(x0s==NULL)||
          (file_head.kappa1==NULL)||(file_head.kappa2==NULL)||
          (file_head.isreal==NULL),
          1,"read_lat_parms [mesons.c]","Out of memory");
 
+   /*on process 0 reads from the input file the parameters
+   related to each of the nprop propagators and each of the ncorr correlators*/
+
    if (my_rank==0)
    {
+      /*loop over the different propagators*/
       for(iprop=0; iprop<nprop; iprop++)
       {
-         sprintf(tmpstring,"Propagator %i",iprop);
-         find_section(tmpstring);
-         read_line("kappa","%lf",&kappas[iprop]);
-         read_line("isp","%d",&isps[iprop]);
-	 read_line("mus","%lf",&mus[iprop]);   /**what is mus ????*/
+         sprintf(tmpstring,"Propagator %i",iprop); /*temporary string set to the propagator identifier*/
+         find_section(tmpstring); /*reading pointer set in the section of the iprop-th propagator*/
+         read_line("kappa","%lf",&kappas[iprop]); /*for the given propagator kappa is read from input file*/
+         read_line("isp","%d",&isps[iprop]); /*for the given propagator the solver id is read from input file*/
+	      read_line("mus","%lf",&mus[iprop]); /*for the given propagator mus(??) is read from input file*/
       }
+      /*loop over the different correlators*/
       for(icorr=0; icorr<ncorr; icorr++)
       {
-         sprintf(tmpstring,"Correlator %i",icorr);
-         find_section(tmpstring);
+         sprintf(tmpstring,"Correlator %i",icorr); /*temporary string set to the correlator identifier*/
+         find_section(tmpstring); /*reading pointer set in the section of the icorr-th correlator*/
 
+         /*the types of the first and the second quarks are read from the input file and
+         the validity of the input parameters is checked (they must range from 0 to to nprop-1)*/
          read_line("iprop","%d %d",&props1[icorr],&props2[icorr]);
          error_root((props1[icorr]<0)||(props1[icorr]>=nprop),1,"read_lat_parms [mesons.c]",
                  "Propagator index out of range");
          error_root((props2[icorr]<0)||(props2[icorr]>=nprop),1,"read_lat_parms [mesons.c]",
                  "Propagator index out of range");
 
+         /*the two temporary strings are used to read from the input file the type
+         of the two mesons appearing in the given correlator, then the string read
+         from file is converted to an integer identifier*/
+
          read_line("type","%s %s",tmpstring,tmpstring2);
          type1[icorr]=-1;
          type2[icorr]=-1;
          
+         /*conversion of type1 to an integer identifier*/
          if(strncmp(tmpstring,"1",1)==0)
             type1[icorr]=ONE_TYPE;
          else if(strncmp(tmpstring,"G0G1",4)==0)
@@ -677,6 +744,7 @@ static void read_lat_parms(void)
          else if(strncmp(tmpstring,"G5",2)==0)
             type1[icorr]=GAMMA5_TYPE;
          
+         /*conversion of type2 to an integer identifier*/
          if(strncmp(tmpstring2,"1",1)==0)
             type2[icorr]=ONE_TYPE;
          else if(strncmp(tmpstring2,"G0G1",4)==0)
@@ -710,21 +778,27 @@ static void read_lat_parms(void)
          else if(strncmp(tmpstring2,"G5",2)==0)
             type2[icorr]=GAMMA5_TYPE;
 
+         /*validity check of type1 and type2 read from the input file*/
          error_root((type1[icorr]==-1)||(type2[icorr]==-1),1,"read_lat_parms [mesons.c]",
                  "Unknown or unsupported Dirac structure");
 
+         /*source time slice is read for each correlator and its validity checked
+         (the timeslice must be inside the previously specified time boundaries)*/
          read_line("x0","%d",&x0s[icorr]);
          error_root((x0s[icorr]<=0)||(x0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [mesons.c]",
                  "Specified time x0 is out of range");
       }
    }
 
+   /*broadcast of parameters read on process 0 to
+   all other proceses of the communicator group*/
+
    MPI_Bcast(kappas,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(mus,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 /* DP */
-   MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD);
+   MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD); /*broadcasted twice ????*/ /*?????????????????????*/
 /* DP */
    MPI_Bcast(isps,nprop,MPI_INT,0,MPI_COMM_WORLD);
 
@@ -734,37 +808,58 @@ static void read_lat_parms(void)
    MPI_Bcast(type2,ncorr,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(x0s,ncorr,MPI_INT,0,MPI_COMM_WORLD);
 
-   set_lat_parms(0.0,1.0,kappas[0],0.0,0.0,csw,1.0,cF);
-   set_sw_parms(sea_quark_mass(0));
+   /*lattice parameters are saved in global structure:
+      - lat : set_lat_parms specifies the parameters of the lat structure, and below
+              the inverse bare coupling is set to 0, the coefficient of the plaquette
+              loops in the gauge action is set to 1, kappa for u and d is set to the
+              specified value, for s and c is set to 0, csw and cF are set to the 
+              specified values, cG (coefficient of gauge O(a) counter term) is set to 1
+      - sw  : structure containing cG, cF and the bare quark mass m0,
+              with set_sw_parms m0 is set to the bare quark mass of the up quark
+              (sea_quark_mass turns 0,1,2 to m0u,m0s,m0c)
+      - tm  : structue containing the twisted mass flag eoflg,
+              if eoflg=1 then twisted mass, SAP preconditioner and little Dirac operator
+              is turned off on odd sites
+      - file_head : structure containing details of correlators
+   */
+
+   set_lat_parms(0.0,1.0,kappas[0],0.0,0.0,csw,1.0,cF); /*parameters of the global structure lat are set*/
+   set_sw_parms(sea_quark_mass(0)); /*parameters of the global structure sw are set*/
 /* DP */
-   set_tm_parms(eoflg);
+   set_tm_parms(eoflg); /*eoflg in the global structure tm is set to the read value*/
 /* DP */
 
-   file_head.ncorr = ncorr;
-   file_head.nnoise = nnoise;
-   file_head.tvals = NPROC0*L0;
-   tvals = NPROC0*L0;
-   file_head.noisetype = noisetype;
-   for(icorr=0; icorr<ncorr; icorr++)
+   file_head.ncorr = ncorr; /*number of correlators saved to global structure*/
+   file_head.nnoise = nnoise; /*number of noise vectors saved to global structure*/
+   file_head.tvals = NPROC0*L0; /*tvals saved to global structure*/
+   tvals = NPROC0*L0; /*tvals saved to global variable*/
+   file_head.noisetype = noisetype; /*noisetype saved to global structure*/
+   for(icorr=0; icorr<ncorr; icorr++) /*for each correlator the related parameters are saved in file_head*/
    {
-      file_head.kappa1[icorr]=kappas[props1[icorr]];
-      file_head.kappa2[icorr]=kappas[props2[icorr]];
+      file_head.kappa1[icorr]=kappas[props1[icorr]]; /*kappa of first quark saved to global structure*/
+      file_head.kappa2[icorr]=kappas[props2[icorr]]; /*kappa of second quark saved to global structure*/
 
 /* DP */
-      file_head.mus1[icorr]=mus[props1[icorr]];
-      file_head.mus2[icorr]=mus[props2[icorr]];
+      file_head.mus1[icorr]=mus[props1[icorr]]; /*mus (??) of first quark saved to global structure*/
+      file_head.mus2[icorr]=mus[props2[icorr]]; /*mus (??) of second quark saved to global structure*/
 /* DP */
 
+      /*in the pion-pion case isreal is set to 1, in any other case to 0*/
       if ((type1[icorr]==GAMMA5_TYPE)&&(type2[icorr]==GAMMA5_TYPE)&&
           (props1[icorr]==props2[icorr]))
          file_head.isreal[icorr]=1;
       else
          file_head.isreal[icorr]=0;
    }
-   if (append)
-      check_lat_parms(fdat);
-   else
-      write_lat_parms(fdat);
+
+   /*the parameters in the lat structure get saved in the fdat file,
+   if the option -a is given the consistency with the previously
+   written parameters is checked*/
+
+   if (append) /*if the current simulation is the continuation of a previous run ...*/
+      check_lat_parms(fdat); /*... the match between the previous and the current lattice parameters is checked*/
+   else /*if the current simulation is a new run ...*/
+      write_lat_parms(fdat); /*...the lat structure gets written to the fdat file*/
 }
 
 
