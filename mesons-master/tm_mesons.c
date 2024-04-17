@@ -99,6 +99,7 @@ static struct
    int nc;
 } data;
 
+/*structure containing the list with all the propagators and their information*/
 static struct
 {
    int nux0;     /* number of unique x0 values */
@@ -137,7 +138,7 @@ static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
    - props2 : array containing the type of the second quark appearing in each correlator
    - type1 : array containing the Dirac structure of the first meson in each correlator
    - type2 : array containing the Dirac structure of the second meson in each correlator
-   - x0s : array containing the time solice of the source of each correlator
+   - x0s : array containing the time slice of the source of each correlator
 */
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
 /*
@@ -1396,30 +1397,44 @@ static void dfl_wsize(int *nws,int *nwv,int *nwvd)
 }
 
 
+/*function that allocates memory for the global proplist structure and
+fills it with the relevant parameters taken from input*/
 static void make_proplist(void)
 {
-   int i,j,k,iprop,icorr;
-   char *kappatype;
+   int i,j,k,iprop,icorr; /*indices used locally*/
+   char *kappatype; /*local array containing the Dirac structures of the propagator*/
 
-   proplist.nux0=0;
+   proplist.nux0=0; /*number of unique x0 values is set by default to 0*/
+
+   /*memory for the array with unique x0 values is allocated, then correct allocation is checked */
    proplist.ux0=malloc(NPROC0*L0*sizeof(int));
    error(proplist.ux0==NULL,1,"make_proplist [mesons.c]","Out of memory");
 
    /* unique x0 values */
-   for (icorr=0;icorr<ncorr;icorr++)
+   /*the following loop determines the number of unique x0 values x0
+   and fills the array ux0 with the number of different x0 values*/
+
+   for (icorr=0;icorr<ncorr;icorr++) /*loop over the correlators*/
    {
-      for (j=0;j<proplist.nux0;j++)
+      for (j=0;j<proplist.nux0;j++) /*loop over the number of different x0 values (= 0 at the first iteration)*/
       {
-         if (proplist.ux0[j]==x0s[icorr])
+         if (proplist.ux0[j]==x0s[icorr]) /*the loop breaks if the x0 of the icorr-th correlator is already registered*/
             break;
+
+         /*when this loop end there are two cases :
+            - j<nux0 if the icorr-th correlator has an x0 at the source already registered in ux0 
+            - j=nux0 if the icorr-th correlator has an x0 at the source that is a new value
+         */
       }
-      if (j==proplist.nux0)
+      if (j==proplist.nux0) /*if j = nux0 then a new different value of x0 has to be registered*/
       {
-         proplist.ux0[j]=x0s[icorr];
-         proplist.nux0++;
+         proplist.ux0[j]=x0s[icorr]; /*x0s of the current correlator added to the array of unique x0 values*/
+         proplist.nux0++; /*number of unique x0 values increased by 1*/
       }
    }
 
+   /*memory allocation for the other attributes of the structure proplist
+   and consequent correct memory allocation check*/
    proplist.nprop=malloc(proplist.nux0*sizeof(int));
    proplist.prop=malloc(proplist.nux0*sizeof(int*));
    proplist.type=malloc(proplist.nux0*sizeof(int*));
@@ -1427,53 +1442,74 @@ static void make_proplist(void)
    error((proplist.nprop==NULL)||(proplist.prop==NULL)||(proplist.type==NULL)
                ||(kappatype==NULL),
                1,"make_proplist [mesons.c]","Out of memory");
-   proplist.nmax=0;
+   
+   proplist.nmax=0; /*maximum number of propagators set by default to 0 (and it gets updated by the following loop)*/
 
-   for (i=0;i<proplist.nux0;i++)
+   for (i=0;i<proplist.nux0;i++) /*loop over the unique x0 values*/
    {
+      /*the auxiliary array kappatype is initialized with zeros
+      (a 0 in the j-th position means that there is not the j-th Dirac structure for the i-th x0)*/
       for (j=0;j<MAX_TYPE*nprop;j++)
          kappatype[j]=0;
 
-      proplist.nprop[i]=0;
-      for (icorr=0;icorr<ncorr;icorr++)
+      /*with the following loop the number of propagators at the i-th x0 value is determined*/
+
+      proplist.nprop[i]=0; /*the number of propagators at the i-th value of x0 is initialized to 0*/
+      for (icorr=0;icorr<ncorr;icorr++) /*loop over the correlators*/
       {
-         if (x0s[icorr]==proplist.ux0[i])
+         if (x0s[icorr]==proplist.ux0[i]) /*if the x0 of the correlator is the i-th one...*/
          {
-            if (!kappatype[type1[icorr]+MAX_TYPE*props2[icorr]])
+            /*... and if the gamma structure is not yet registered
+            (this meaning that the kappatype specified below is 0) ...*/
+
+            if (!kappatype[type1[icorr]+MAX_TYPE*props2[icorr]]) /*(true(!0) if the gamma structure is new)*/
             {
-               kappatype[type1[icorr]+MAX_TYPE*props2[icorr]]=1;
-               proplist.nprop[i]++;
+               kappatype[type1[icorr]+MAX_TYPE*props2[icorr]]=1; /*... gamma structure gets registered*/
+               proplist.nprop[i]++; /*... number of propagators with the i-th x0 is increased by 1*/
             }
-            if (!kappatype[GAMMA5_TYPE+MAX_TYPE*props1[icorr]])
+            if (!kappatype[GAMMA5_TYPE+MAX_TYPE*props1[icorr]]) /*(true(!0) if the gamma structure is new)*/
             {
-               kappatype[GAMMA5_TYPE+MAX_TYPE*props1[icorr]]=1;
-               proplist.nprop[i]++;
+               kappatype[GAMMA5_TYPE+MAX_TYPE*props1[icorr]]=1; /*... gamma structure gets registered*/
+               proplist.nprop[i]++; /*... number of propagators with the i-th x0 is increased by 1*/
             }
          }
       }
 
-      if (proplist.nprop[i]>proplist.nmax)
-         proplist.nmax=proplist.nprop[i];
+      /*the maximum number of propagators (that there can be in a given x0) gets updated*/
 
+      if (proplist.nprop[i]>proplist.nmax) /*if the number of propagator at the i-th x0 is greater than the max ...*/
+         proplist.nmax=proplist.nprop[i]; /*... the max number of propagators gets updated*/
+
+      /*once the number of propagators with a given x0 is known the following arrays can be allocated*/
+
+      /*memory allocation for the other attributes of the structure proplist
+      and consequent correct memory allocation check*/
       proplist.prop[i]=malloc(proplist.nprop[i]*sizeof(int));
       proplist.type[i]=malloc(proplist.nprop[i]*sizeof(int));
       error((proplist.prop[i]==NULL)||(proplist.type[i]==NULL),
                  1,"make_proplist [mesons.c]","Out of memory");
-      j=0;
-      for (k=0;k<MAX_TYPE;k++)
+      
+      
+      /*with the following loop the arrays prop and type get filled:
+         - prop[i][j] contains the indicex of the j-th propagator positioned at the i-th x0 value
+         - type[i][j] contains the Dirac structure of the j-th propagator positioned at the i-th x0 value
+      */
+
+      j=0; /*index counting the propagators founded at the i-th x0*/
+      for (k=0;k<MAX_TYPE;k++) /*loop over the type of Dirac structures*/
       {
-         for (iprop=0;iprop<nprop;iprop++)
+         for (iprop=0;iprop<nprop;iprop++) /*when the Dirac structure is one of the registered ones*/
          {
-            if (kappatype[k+MAX_TYPE*iprop])
+            if (kappatype[k+MAX_TYPE*iprop]) /*when the Dirac structure is one of the registered ones*/
             {
-               proplist.prop[i][j]=iprop;
-               proplist.type[i][j]=k;
-               j++;
+               proplist.prop[i][j]=iprop; /*the iprop-th propagator gets registered*/
+               proplist.type[i][j]=k; /*the k-th Dirac structure gets registered*/
+               j++; /*the number of propagators at the i-th x0 position increases*/
             }
          }
       }
    }
-   free(kappatype);
+   free(kappatype); /*the memory for auxiliary array kappatype gets freed*/
 }
 
 static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
@@ -1947,7 +1983,7 @@ int main(int argc,char *argv[])
    geometry(); /*compute global arrays related to MPI process grid and to indexes of lattice grid*/
    init_rng(); /*initialization of the random number generator*/
 
-   make_proplist();
+   make_proplist(); /*construction of the global proplist structure from parameters read from input*/
    wsize(&nws,&nwsd,&nwv,&nwvd);
    alloc_ws(nws);
    alloc_wsd(nwsd);
