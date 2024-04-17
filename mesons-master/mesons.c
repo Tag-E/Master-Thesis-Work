@@ -83,6 +83,8 @@ static struct
    int *isreal; /*array containing 1 for pion-pion correlators, 0 otherwise (??)*/
 } file_head; 
 
+/*structure containing the number of correlators, an array (of complex doubles) with all the correlators,
+and a related array used as temporary copy*/
 static struct
 {
    complex_dble *corr;
@@ -132,6 +134,13 @@ static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
    - x0s : array containing the time solice of the source of each correlator
 */
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
+/*
+   - ipgrd : variable used to keep track of changes in the number of processes between runs,
+             if ipgrd[0]!=0 then the process grid changed, if ipgrd[1]!=0 then the process
+             block size changed
+   - rlxs_state : ???
+   - rlxd_State : ???
+*/
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
 /*
    - kappas : array containing the value of kappa for each propagator
@@ -164,19 +173,32 @@ static char cnfg_file[NAME_SIZE],nbase[NAME_SIZE],outbase[NAME_SIZE];
 */
 static FILE *fin=NULL,*flog=NULL,*fend=NULL,*fdat=NULL;
 
-/**************************************************************/
+/*************************** Definition of Functions ***********************************/
 
+
+/*function used to allocate the structure data*/
 static void alloc_data(void)
 {
+
+   /*the number of complex double needed is equal to the number of correlators
+   times the number of noise vectors per configuration times the number of
+   time intervals (such a quantity for data.corr and for the temporary counterpart
+   data.corr_tmp)*/
+
+   /*memory allocation*/
    data.corr=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
                                                           sizeof(complex_dble));
    data.corr_tmp=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
                                                       sizeof(complex_dble));
+   
+   /*check on correct memory allocation*/
    error((data.corr==NULL)||(data.corr_tmp==NULL),1,"alloc_data [mesons.c]",
          "Unable to allocate data arrays");
 }
 
 
+/*function used to save the global file_head structure containing
+the correlators' information on the binary .dat file*/
 static void write_file_head(void)
 {
    stdint_t istd[1];
@@ -865,6 +887,7 @@ static void read_dfl_parms(void)
 }
 
 
+/*function reading the solvers' parameters from the input file*/
 static void read_solvers(void)
 {
    solver_parms_t sp;
@@ -980,6 +1003,10 @@ static void read_infile(int argc,char *argv[])
 }
 
 
+/*function used to read the old log file. fts, lst and stp are assigned respectively to: 
+   -fts, number of the first configuration of the previous run
+   -lst, number of the last configuration of the previous run
+   -stp, step between each configuration of the previous run*/
 static void check_old_log(int *fst,int *lst,int *stp)
 {
    int ie,ic,isv;
@@ -1053,6 +1080,9 @@ static void check_old_log(int *fst,int *lst,int *stp)
 }
 
 
+/*function used to check that the first, last and step of the configuration scan
+reported in the .dat file are the ones passed as inputs - the inputs should be
+the first, last and step read from the .log file*/
 static void check_old_dat(int fst,int lst,int stp)
 {
    int ie,ic;
@@ -1096,40 +1126,60 @@ static void check_old_dat(int fst,int lst,int stp)
 }
 
 
+/*function used to check compatibility with the log and dat files already written
+(as safety measure if -a is not given but the log and dat file are present, they won't be
+overwritten but instead an error will be raised)*/
 static void check_files(void)
 {
-   int fst,lst,stp;
+   int fst,lst,stp; /*local variables to check first, last and step of the  previous configurations scan*/
 
-   ipgrd[0]=0;
-   ipgrd[1]=0;
+   ipgrd[0]=0; /*ipgrd[0]=0 means that the process grid has not changed (true by default)*/
+   ipgrd[1]=0; /*ipgrd[1]=0 means that the process block size has not changed (true by default)*/
    
+   /*the check is done only on the first process*/
+
    if (my_rank==0)
    {
-      if (append)
+      if (append) /*if the run is a continuation of a previous run the compatibility with old files is checked*/
       {
-         check_old_log(&fst,&lst,&stp);
-         check_old_dat(fst,lst,stp);
+         check_old_log(&fst,&lst,&stp); /*fst, lst, stp are read from the .log file of the previous run*/
+         check_old_dat(fst,lst,stp); /*compatibility check between the old .log file and the old .dat file*/
 
+         /*raise an error if the previous and the current step of the scan are different
+         (except for the case in which in the previous scan there was only one configuration,
+         i.e. the case in which first=last)*/
          error_root((fst!=lst)&&(stp!=step),1,"check_files [mesons.c]",
                     "Continuation run:\n"
                     "Previous run had a different configuration separation");
+         
+         /*raise an error if the current scan does not continue the previous one*/
          error_root(first!=lst+step,1,"check_files [mesons.c]",
                     "Continuation run:\n"
                     "Configuration range does not continue the previous one");
       }
-      else
+      else /*if the run is a new run an error is raised to avoid overwriting existing files*/
       {
+         /*attempt to read log_file: if that is possible an error is raised
+         as to avoid overwriting the .log file*/
          fin=fopen(log_file,"r");
          error_root(fin!=NULL,1,"check_files [mesons.c]",
                     "Attempt to overwrite old *.log file");
+         
+         /*attempt to read dat_file: if that is possible an error is raised
+         as to avoid overwriting the .dat file*/
          fdat=fopen(dat_file,"r");
          error_root(fdat!=NULL,1,"check_files [mesons.c]",
                     "Attempt to overwrite old *.dat file");
+
+         /*creates of the .dat file and checks whether the operation was successful*/
          fdat=fopen(dat_file,"wb");
          error_root(fdat==NULL,1,"check_files [mesons.c]",
                     "Unable to open data file");
-         write_file_head();
-         fclose(fdat);
+         
+         /*the structure file_head containing correlators info is written to the .dat file,
+         then the .dat file is closed*/
+         write_file_head(); /*global file_head structure saved on the .dat file*/
+         fclose(fdat); /*.dat file closed*/
       }
    }
 }
@@ -1819,8 +1869,8 @@ int main(int argc,char *argv[])
    /** file and simulation parameters initialization **/
 
    read_infile(argc,argv); /*read input from command line and input file*/
-   alloc_data();
-   check_files();
+   alloc_data(); /*allocate memory for the data structure*/
+   check_files(); /*check compatibility with .dat and .log files already written*/
    print_info();
    dfl=dfl_parms();
 
