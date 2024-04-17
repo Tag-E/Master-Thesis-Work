@@ -932,7 +932,7 @@ static void read_infile(int argc,char *argv[])
    if (my_rank==0) /*--> true on the first process*/
    {
       /*setting the file STARTUP_ERROR as the place where
-        execution output (errors) gets written*/
+        execution output (errors) gets written, i.e. setting it as stdout*/
       flog=freopen("STARTUP_ERROR","w",stdout); 
 
       /*reading input from command line*/
@@ -1185,6 +1185,8 @@ static void check_files(void)
 }
 
 
+/*function that sets the .log file as stdout and prints there all the information
+related to the simulation (parameters, hardware specifics ecc.)*/
 static void print_info(void)
 {
    int i,isap,idfl;
@@ -1871,7 +1873,7 @@ int main(int argc,char *argv[])
    read_infile(argc,argv); /*read input from command line and input file*/
    alloc_data(); /*allocate memory for the data structure*/
    check_files(); /*check compatibility with .dat and .log files already written*/
-   print_info();
+   print_info(); /*write all the variables and parameters of the simulation to the .log file*/
    dfl=dfl_parms();
 
    geometry();
