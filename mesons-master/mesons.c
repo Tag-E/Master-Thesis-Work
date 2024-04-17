@@ -1782,23 +1782,27 @@ static void set_data(int nc)
    }
 }
 
+
+/*function used to initialize the random number generator (rng)*/
 static void init_rng(void)
 {
    int ic;
 
-   if (append)
+   if (append) /*if the run is a continuation of a previous run ...*/
    {
-      if (norng)
-         start_ranlux(level,seed^(first-step));
-      else
+      if (norng) /*... but if the option -norng is given ...*/
+         start_ranlux(level,seed^(first-step)); /*... traditional generator initialization*/
+      else /*... if instead -norng is not given the run start from the saved state of the random generator*/
       {
-         ic=import_ranlux(rng_file);
+         /*the random generator is initialized importing the saved state of the random generator from
+         the previous run, then the compatibility with the parameters of the current run is checked*/
+         ic=import_ranlux(rng_file); 
          error_root(ic!=(first-step),1,"init_rng [mesons.c]",
                     "Configuration number mismatch (*.rng file)");
       }
    }
-   else
-      start_ranlux(level,seed);
+   else /*if the run is a new run ...*/
+      start_ranlux(level,seed); /*...traditional generator initialization*/
 }
 
 
@@ -1861,7 +1865,7 @@ int main(int argc,char *argv[])
    int nc,iend,status[4];
    int nws,nwsd,nwv,nwvd;
    double wt1,wt2,wtavg;
-   dfl_parms_t dfl;
+   dfl_parms_t dfl; /*structure with parameters of the deflation subspace*/
 
    /** openMPI inizialization **/
 
@@ -1874,10 +1878,10 @@ int main(int argc,char *argv[])
    alloc_data(); /*allocate memory for the data structure*/
    check_files(); /*check compatibility with .dat and .log files already written*/
    print_info(); /*write all the variables and parameters of the simulation to the .log file*/
-   dfl=dfl_parms();
+   dfl=dfl_parms(); /*get the parameters of the deflation subspace from global structure*/
 
-   geometry();
-   init_rng();
+   geometry(); /*compute global arrays related to MPI process grid and to indexes of lattice grid*/
+   init_rng(); /*initialization of the random number generator*/
 
    make_proplist();
    wsize(&nws,&nwsd,&nwv,&nwvd);

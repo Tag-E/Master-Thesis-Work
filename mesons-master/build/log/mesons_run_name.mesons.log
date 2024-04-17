@@ -694,7 +694,7 @@ Inversions:
          type=1, prop=1, status:6 3
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 1 fully processed in 3.78e+02 sec (average = 3.78e+02 sec)
+Configuration no 1 fully processed in 3.20e+02 sec (average = 3.20e+02 sec)
 
 Configuration no 3
 Deflation subspace generation: status = 4
@@ -1302,7 +1302,7 @@ Inversions:
          type=1, prop=1, status:6 4
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 3 fully processed in 3.22e+02 sec (average = 3.50e+02 sec)
+Configuration no 3 fully processed in 4.36e+02 sec (average = 3.78e+02 sec)
 
 Configuration no 5
 Deflation subspace generation: status = 3
@@ -1910,7 +1910,7 @@ Inversions:
          type=1, prop=1, status:6 3
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 5 fully processed in 4.19e+02 sec (average = 3.73e+02 sec)
+Configuration no 5 fully processed in 5.17e+02 sec (average = 4.24e+02 sec)
 
 Configuration no 7
 Deflation subspace generation: status = 3
@@ -2518,7 +2518,7 @@ Inversions:
          type=1, prop=1, status:6 3
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 7 fully processed in 6.81e+02 sec (average = 4.50e+02 sec)
+Configuration no 7 fully processed in 5.08e+02 sec (average = 4.45e+02 sec)
 
 Configuration no 9
 Deflation subspace generation: status = 3
@@ -3126,7 +3126,7 @@ Inversions:
          type=1, prop=1, status:6 3
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 9 fully processed in 5.12e+02 sec (average = 4.62e+02 sec)
+Configuration no 9 fully processed in 5.11e+02 sec (average = 4.58e+02 sec)
 
 Configuration no 11
 Deflation subspace generation: status = 3
@@ -3734,5 +3734,5 @@ Inversions:
          type=1, prop=1, status:6 4
          type=5, prop=0, status:7 4
 G(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
-Configuration no 11 fully processed in 4.74e+02 sec (average = 4.64e+02 sec)
+Configuration no 11 fully processed in 5.55e+02 sec (average = 4.74e+02 sec)
 
