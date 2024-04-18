@@ -64,6 +64,7 @@
 
 static char line[NAME_SIZE+1];
 
+/*this macro sets n to be the greatest between n and m*/
 #define MAX(n,m) \
    if ((n)<(m)) \
       (n)=(m)
@@ -1319,17 +1320,28 @@ static void print_info(void)
 }
 
 
+/*function used to increase nws, nwv, nwvd if they are smaller than
+the minimum value allowed (specified in the parameters of the deflation subspace)*/
 static void dfl_wsize(int *nws,int *nwv,int *nwvd)
 {
-   dfl_parms_t dp;
-   dfl_pro_parms_t dpp;
+   dfl_parms_t dp; /*Parameters of Deflation subspace*/
+   dfl_pro_parms_t dpp; /*Parameters of Projectors of Deflation subspace*/
 
-   dp=dfl_parms();
-   dpp=dfl_pro_parms();
+   /*dp and dpp are now set to two global structures:
+      - dp to dfl, the structure containing the parameters of the deflation subspace
+      - dpp to dfl_pro,the structure containing the parameters of projector on the deflation subspace
+   */
 
-   MAX(*nws,dp.Ns+2);
-   MAX(*nwv,2*dpp.nkv+2);
-   MAX(*nwvd,4);
+   dp=dfl_parms(); /*dp is set to the global structure dfl*/
+   dpp=dfl_pro_parms(); /*dp is set to the global structure dfl_pro*/
+
+   /*if the content of nws, nwv, nwvd is smaller than the related parameters of the deflation subspace,
+   then they are set to the parameter taken from the deflation subspace (??)
+   ( MAX(n,m) sets n to be the greatest between n and m) */
+
+   MAX(*nws,dp.Ns+2); /*nws set to dp.Ns+2 if dp.Ns+2 is bigger*/
+   MAX(*nwv,2*dpp.nkv+2); /*nwv set to 2*dpp.nkv+2 if 2*dpp.nkv+2 is bigger */
+   MAX(*nwvd,4); /*nwvd set to 4 if nwvd<4*/
 }
 
 
@@ -1449,18 +1461,26 @@ static void make_proplist(void)
    free(kappatype); /*the memory for auxiliary array kappatype gets freed*/
 }
 
+
+/*function that sets nws, nwsd, nwv, nwvd according to the
+solver method chosen in the input file*/
 static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
 {
-   int nsd;
-   solver_parms_t sp;
+   int nsd; /*??*/
+   solver_parms_t sp; /*local variable with the solver parameters*/
+
+   /*nws, nwsd, nwv, nwvd are initialized to 0*/
 
    (*nws)=0;
    (*nwsd)=0;
    (*nwv)=0;
    (*nwvd)=0;
 
-   sp=solver_parms(0);
-   nsd=proplist.nmax+2;
+   sp=solver_parms(0); /*set sp to the global structure with the solver parameters*/
+   nsd=proplist.nmax+2; /*nsd set to maximum number of propagators +2 (??) */
+
+   /*depending on the solver method nws, nwsd, nwv, nwvd get modified
+   (they increase if they are smaller than some minimum)*/
 
    if (sp.solver==CGNE)
    {
@@ -1476,9 +1496,9 @@ static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
    {
       MAX(*nws,2*sp.nkv+2);
       MAX(*nwsd,nsd+4);
-      dfl_wsize(nws,nwv,nwvd);
+      dfl_wsize(nws,nwv,nwvd); /*compatibility check with the specifics of the deflation subspace (??)*/
    }
-   else
+   else /*raises an error if the solver method is not one of the allowed ones*/
       error_root(1,1,"wsize [mesons.c]",
                  "Unknown or unsupported solver");
 }
@@ -1899,9 +1919,9 @@ int main(int argc,char *argv[])
 
    /** definition of variables **/
 
-   int nc,iend,status[4];
-   int nws,nwsd,nwv,nwvd;
-   double wt1,wt2,wtavg;
+   int nc,iend,status[4]; /*nc=index and iend=end flag (1 set, 0 not set) of the configuration loop, status=status of deflation subspace*/
+   int nws,nwsd,nwv,nwvd; /*number of workspace fields (s=spinor, v=vector, d=double precision)*/
+   double wt1,wt2,wtavg; /*time variables for time estimates in the loop over configurations*/
    dfl_parms_t dfl; /*structure with parameters of the deflation subspace*/
 
    /** openMPI inizialization **/
@@ -1921,14 +1941,14 @@ int main(int argc,char *argv[])
    init_rng(); /*initialization of the random number generator*/
 
    make_proplist(); /*construction of the global proplist structure from parameters read from input*/
-   wsize(&nws,&nwsd,&nwv,&nwvd);
-   alloc_ws(nws);
-   alloc_wsd(nwsd);
-   alloc_wv(nwv);
-   alloc_wvd(nwvd);
+   wsize(&nws,&nwsd,&nwv,&nwvd); /*set nws, nwsd, nwv, nwvd according to the solver method chosen in input file*/
+   alloc_ws(nws); /*allocates a workspace of nws single-precision spinor fields*/
+   alloc_wsd(nwsd); /*allocates a workspace of nwsd double-precision spinor fields*/
+   alloc_wv(nwv); /*allocates a workspace of nws single-precision vector fields*/
+   alloc_wvd(nwvd); /*allocates a workspace of nwsd double-precision spinor fields*/
 
-   iend=0;
-   wtavg=0.0;
+   iend=0; /*end flag initialized to 0 (= flag not set)*/
+   wtavg=0.0; /*average waiting time initialized to 0*/
 
    for (nc=first;(iend==0)&&(nc<=last);nc+=step)
    {
