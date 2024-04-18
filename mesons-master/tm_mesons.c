@@ -172,6 +172,11 @@ static double *kappas,*mus;
 
 static char log_dir[NAME_SIZE],loc_dir[NAME_SIZE];
 static char cnfg_dir[NAME_SIZE],dat_dir[NAME_SIZE];
+/*
+   - log_file : name of the .log file used as stdout
+   - log_save : name of the backup file of the .log file
+   - end_file : name of the file (same as run name) with .extension used to signal early termination
+*/
 static char log_file[NAME_SIZE*2+offset],log_save[NAME_SIZE*2+offset+1],end_file[NAME_SIZE*2+offset];
 static char dat_file[NAME_SIZE*2+offset],dat_save[NAME_SIZE*2+offset+1]; /*save has to be long as file +1*/
 static char par_file[NAME_SIZE*2+offset],par_save[NAME_SIZE*2+offset+1];
@@ -1965,23 +1970,28 @@ static void restore_ranlux(void)
 }
 
 
+/*function that sets the endflag if in the log directory there is a file
+with the .end extension and with the same name of the run
+(that's a gentle way to kill the program execution from terminal)*/
 static void check_endflag(int *iend)
 {
+   /*only on process 0 checks if the endflag has to be set*/
    if (my_rank==0)
    {
-      fend=fopen(end_file,"r");
+      fend=fopen(end_file,"r"); /*tries to open the .end file*/
 
-      if (fend!=NULL)
+      if (fend!=NULL) /*if .end file has been opened succesfully ...*/
       {
-         fclose(fend);
-         remove(end_file);
-         (*iend)=1;
-         printf("End flag set, run stopped\n\n");
+         fclose(fend); /*... closes the .end file*/
+         remove(end_file); /*... removes the .end file*/
+         (*iend)=1; /*... sets the end flag on (i.e. to 1)*/
+         printf("End flag set, run stopped\n\n"); /*... writes about the early termination in the .log file*/
       }
-      else
-         (*iend)=0;
+      else /*if instead there is not a .end file ...*/
+         (*iend)=0; /*... the endflag stays off (i.e. to 0) and the run continues*/
    }
 
+   /*the endflag is then broadcasted to all other processes*/
    MPI_Bcast(iend,1,MPI_INT,0,MPI_COMM_WORLD);
 }
 
@@ -2045,17 +2055,23 @@ int main(int argc,char *argv[])
       }
       else /*if instead -noexp is not set the configurations are read in exported file format*/
       {
-         sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc);
-         /*import_cnfg(cnfg_file);*/
+         sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc); /*get the name of the configuration file from input parameters*/
+         /*import_cnfg(cnfg_file);*/ /*reads the configuration from the cnfg_file, saves it (where ??)*/
       }
 
-      if (dfl.Ns)
+      /*the deflation subspace is generated*/
+      if (dfl.Ns) /*if the number of deflation mode is different from 0...*/
       {
+         /*... the deflation subspace is initialized*/
+
+         /*initialize deflation subspace and its compute basis vectors,
+         an error is raised if the operation fails*/
          dfl_modes(status);
          error_root(status[0]<0,1,"main [mesons.c]",
                     "Deflation subspace generation failed (status = %d)",
                     status[0]);
 
+         /*on process 0 the (succesful) status of the deflation subspace generation is written to the .log file*/
          if (my_rank==0)
             printf("Deflation subspace generation: status = %d\n",status[0]);
       }
@@ -2079,14 +2095,21 @@ int main(int argc,char *argv[])
          printf("(average = %.2e sec)\n\n",
                 wtavg/(double)((nc-first)/step+1));
       }
-      check_endflag(&iend);
 
+      /*once the current configuration has been computed the program checks if its execution has to be
+      terminated early by looking for the endflag
+      (the user can kill the program gently by creating a .end file with the same name of the run in the
+      log directory, if such a file is found the function below sets the endflag to true)*/
+
+      check_endflag(&iend);  /*check if the endlfag has been raised by the user (if so that's the last loop iteration)*/
+
+      /*on process 0 before a new loop iteration the output gets flushed and the file gets saved*/
       if (my_rank==0)
       {
-         fflush(flog);
-         copy_file(log_file,log_save);
-         copy_file(dat_file,dat_save);
-         copy_file(rng_file,rng_save);
+         fflush(flog); /*flush of printf to the .log file*/
+         copy_file(log_file,log_save); /*.log file saved to .log~ file for backup*/
+         copy_file(dat_file,dat_save); /*.dat file saved to .dat~ file for backup*/
+         copy_file(rng_file,rng_save); /*.rng file saved to .rng~ file for backup*/
       }
    }
 
