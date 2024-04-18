@@ -140,8 +140,8 @@ static int *isps,*props1,*props2,*type1,*type2,*x0s;
    - ipgrd : variable used to keep track of changes in the number of processes between runs,
              if ipgrd[0]!=0 then the process grid changed, if ipgrd[1]!=0 then the process
              block size changed
-   - rlxs_state : ???
-   - rlxd_State : ???
+   - rlxs_state : state of the random number generator rlxs
+   - rlxd_state : state of the random number generator rlxd
 */
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
 /*
@@ -163,6 +163,7 @@ static char dat_file[NAME_SIZE],dat_save[NAME_SIZE];
 static char par_file[NAME_SIZE],par_save[NAME_SIZE];
 static char rng_file[NAME_SIZE],rng_save[NAME_SIZE];
 /*
+   - cnfg_file : name given to various files where the configurations are stored
    - nbase : name given to the run
    - outbase : name given to output files (=nbase by default)
 */
@@ -1863,31 +1864,41 @@ static void init_rng(void)
 }
 
 
+/*function used to save the current state of the random number generators rlxs and rlxd
+(and initialize them if needed)*/
 static void save_ranlux(void)
 {
-   int nlxs,nlxd;
+   int nlxs,nlxd; /*number of integers required to save the state of the generators*/
 
-   if (rlxs_state==NULL)
+   /*initialize the generators if needed*/
+
+   if (rlxs_state==NULL) /*if the state of the generator is uninitializied (as it is by default)*/
    {
-      nlxs=rlxs_size();
-      nlxd=rlxd_size();
+      nlxs=rlxs_size(); /*get the number of integers required to save the state of the rlxs generator*/
+      nlxd=rlxd_size(); /*get the number of integers required to save the state of the rlxd generator*/
 
-      rlxs_state=malloc((nlxs+nlxd)*sizeof(int));
-      rlxd_state=rlxs_state+nlxs;
+      /*allocate memory for the two generators states*/
+      rlxs_state=malloc((nlxs+nlxd)*sizeof(int)); /*memory allocation for the two arrays*/
+      rlxd_state=rlxs_state+nlxs; /*set rlxd_state memory right after rlxs_state memory*/
 
+      /*check on the correct memory allocation*/
       error(rlxs_state==NULL,1,"save_ranlux [mesons.c]",
             "Unable to allocate state arrays");
    }
 
-   rlxs_get(rlxs_state);
-   rlxd_get(rlxd_state);
+   /*save the state of the generators*/
+
+   rlxs_get(rlxs_state); /*store the state of the rlxs generator in rlsxs_state*/
+   rlxd_get(rlxd_state); /*store the state of the rlxd generator in rlxd_state*/
 }
 
 
+/*function that sets the states of the rlxs and rlxd generators to the
+states currently saved in the globl variables rlxs_state and rlxd_state*/
 static void restore_ranlux(void)
 {
-   rlxs_reset(rlxs_state);
-   rlxd_reset(rlxd_state);
+   rlxs_reset(rlxs_state); /*sets the rlxs_generator to the state rlxs_state*/
+   rlxd_reset(rlxd_state); /*sets the rlxd_generator to the state rlxd_state*/
 }
 
 
@@ -1947,27 +1958,31 @@ int main(int argc,char *argv[])
    alloc_wv(nwv); /*allocates a workspace of nws single-precision vector fields*/
    alloc_wvd(nwvd); /*allocates a workspace of nwsd double-precision spinor fields*/
 
+   /** loop over the gauge field configurations **/
+
    iend=0; /*end flag initialized to 0 (= flag not set)*/
    wtavg=0.0; /*average waiting time initialized to 0*/
 
-   for (nc=first;(iend==0)&&(nc<=last);nc+=step)
+   for (nc=first;(iend==0)&&(nc<=last);nc+=step) /*loop scanning over the specified configuration range*/
    {
-      MPI_Barrier(MPI_COMM_WORLD);
-      wt1=MPI_Wtime();
+      MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
+      wt1=MPI_Wtime(); /*time measured before the nc-th configuration is processed*/
 
+      /*on process 0 the number of the processed configuration is printed on the .log file*/
       if (my_rank==0)
          printf("Configuration no %d\n",nc);
 
-      if (noexp)
+      /*gauge configurations are read according to what specified in the input file*/
+      if (noexp) /*if -noexp is set the configurations are read in imported file format locally*/
       {
-         save_ranlux();
-         sprintf(cnfg_file,"%s/%sn%d_%d",loc_dir,nbase,nc,my_rank);
-         read_cnfg(cnfg_file);
-         restore_ranlux();
+         save_ranlux(); /*save to global variables the current states of the random number generators rlxs and rlxd*/
+         sprintf(cnfg_file,"%s/%sn%d_%d",loc_dir,nbase,nc,my_rank); /*get the name of the configuration file from input parameters*/
+         read_cnfg(cnfg_file); /*reads the configuration from the cnfg_file, saves it (where ??) and resets the generators*/
+         restore_ranlux(); /*set the states of the generators to the saved values (saved before the reset due to read_cnfg)*/
       }
-      else
+      else /*if instead -noexp is not set the configurations are read in exported file format*/
       {
-         sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc);
+         sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc); /*get the name of the configuration file from input parameters*/
          import_cnfg(cnfg_file);
       }
 
@@ -1988,11 +2003,13 @@ int main(int argc,char *argv[])
       export_ranlux(nc,rng_file);
       error_chk();
       
-      MPI_Barrier(MPI_COMM_WORLD);
-      wt2=MPI_Wtime();
-      wtavg+=(wt2-wt1);
+      MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
+      wt2=MPI_Wtime(); /*time measured after the nc-th configuration is processed*/
+      wtavg+=(wt2-wt1); /*the time needed to processes the nc-th configuration is added to the total time needed*/
       
 
+      /*on process 0 the time needed to process the nc-th configuration and the exstimate of the average time
+      needed to process one configuration are printed (to stdout that now is the .log file)*/
       if (my_rank==0)
       {
          printf("Configuration no %d fully processed in %.2e sec ",
@@ -2011,12 +2028,14 @@ int main(int argc,char *argv[])
       }
    }
 
+   /** program ending **/
 
+   /*on process 0 the .log file is closed (it was still open since it served as stdout)*/
    if (my_rank==0)
    {
       fclose(flog);
    }
 
-   MPI_Finalize();
-   exit(0);
+   MPI_Finalize(); /*MPI execution environmment is terminated*/
+   exit(0); /*termination of main*/
 }
