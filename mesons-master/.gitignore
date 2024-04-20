@@ -7,6 +7,7 @@ doc/*~
 build/*.o
 build/*.d
 build/mesons
+build/tm_mesons
 build/salg_tests
 build/sflds_tests
 tests/*~

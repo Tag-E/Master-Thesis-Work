@@ -1262,8 +1262,10 @@ static void print_info(void)
    long ip;
    lat_parms_t lat;
 /* DP */
-   /*tm_parms_t tm;*/ /*tm should be initialized? -> commented to avoid problems*/
+   tm_parms_t tm; /*local structure containing the copy of the global tm structure*/
 /* DP */
+
+   tm = tm_parms(); /*tm gets assigned to the global structure tm with the twisted mass flag*/
 
    if (my_rank==0)
    {
@@ -1358,7 +1360,7 @@ static void print_info(void)
          printf("csw       = %.6f\n",lat.csw);
          printf("cF        = %.6f\n\n",lat.cF);
 /* DP */
-	 /*printf("eoflg     = %i\n",tm.eoflg);*/ /*had to comment this to avoid problem*/
+	      printf("eoflg     = %i\n",tm.eoflg); /*print the twisted mass flag eoflag to the .log file*/
 /* DP */
          for (i=0; i<nprop; i++)
          {
