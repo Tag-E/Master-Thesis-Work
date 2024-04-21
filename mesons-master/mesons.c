@@ -33,6 +33,13 @@
 
 #define MAIN_PROGRAM
 
+
+
+/*******************************************************************************/
+/******************************** Includes *************************************/
+/*******************************************************************************/
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -54,20 +61,37 @@
 #include "global.h"
 #include "mesons.h"
 
+
+
+/*******************************************************************************/
+/******************************** Defines **************************************/
+/*******************************************************************************/
+
+
+/*number of processes in each spacetime direction*/
 #define N0 (NPROC0*L0)
 #define N1 (NPROC1*L1)
 #define N2 (NPROC2*L2)
 #define N3 (NPROC3*L3)
 
 
-/**declaration of global variables**/
-
-static char line[NAME_SIZE+1];
-
 /*this macro sets n to be the greatest between n and m*/
 #define MAX(n,m) \
    if ((n)<(m)) \
       (n)=(m)
+
+
+
+/*******************************************************************************/
+/******************* Declaration of Global Variables ***************************/
+/*******************************************************************************/
+
+
+/*auxiliary variable used to store temporarily strings of characters*/
+static char line[NAME_SIZE+1];
+
+
+/*** global structures ***/
 
 /*struct containing the parameters of the input file related to the correlators*/
 static struct
@@ -84,6 +108,7 @@ static struct
    int *isreal; /*array containing 1 for pion-pion correlators, 0 otherwise (??)*/
 } file_head; 
 
+
 /*structure containing the correlators: it has an array corr (of complex doubles) with the
 complete values of all the correlators at all times, a related array corr_tmp used as temporary
 copy to store the partial values of the correlators computed by a single process, an index nc
@@ -94,6 +119,7 @@ static struct
    complex_dble *corr_tmp; /*partial value of the correlators computed by a single process*/
    int nc; /*index of the gauge configuration the correlator is related to*/
 } data;
+
 
 /*structure containing the list with all the propagators and their information*/
 static struct
@@ -107,6 +133,8 @@ static struct
 } proplist;
 
 
+/*** global variables ***/
+
 /*
    - my_rank : rank of the process (unique identifier of the process inside the communicator group)
    - noexp : True if the option -noexp is set by command line, False(0) otherwise 
@@ -115,12 +143,16 @@ static struct
    - endian : BIG_ENDIAN, LITTLE_ENDIAN or UNKOWN_ENDIAN depending on the machine
 */
 static int my_rank,noexp,append,norng,endian;
+
+
 /*
    - first : index of the first configuration
    - last : inde of the last configuration
    - step : step used in the scanning of configurations (??)
 */
 static int first,last,step;
+
+
 /*
    - level, seed : parameters of the random generator
    - nprop, ncorr : number of different quark lines and of different correlators
@@ -129,6 +161,8 @@ static int first,last,step;
    - tvals : size of time lattice spaces times number of time processes (??)
 */
 static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
+
+
 /*
    - isps : array containing the solver id for each propagator
    - props1 : array containing the type of the first quark appearing in each correlator
@@ -138,6 +172,8 @@ static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
    - x0s : array containing the time slice of the source of each correlator
 */
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
+
+
 /*
    - ipgrd : variable used to keep track of changes in the number of processes between runs,
              if ipgrd[0]!=0 then the process grid changed, if ipgrd[1]!=0 then the process
@@ -146,44 +182,96 @@ static int *isps,*props1,*props2,*type1,*type2,*x0s;
    - rlxd_state : state of the random number generator rlxd
 */
 static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
+
+
 /*
    - kappas : array containing the value of kappa for each propagator
    - mus : array containing the value of mus for each propagator (??)
 */
 static double *kappas,*mus;
 
-/*names of directories and files used:
-   - _dir are the names of the directories used
-   - _file and the names of the files produced
-   - _save the names of the related backup files
+
+/*** names of files and directories ***/
+
+/*the structure for the variables storing names of files and directories is the following:
+   - _dir variables : names of the directories used
+   - _file variables : names of the files used
+   - _save variables : names of the backup files of the corresponding _file file
+                       (the name of the backup is same as file's name but with a "~" at the end)
 */
 
+/*the maximum lenght of the various files' names is specified by NAME_SIZE,
+with some files being slightly longer (by the above offsets) and by a factor of 2 due to the way their name is constructed*/
+#define offset 13 /* = long enough to accomodate the string  given by "/" + ".mesons.log"*/
+#define offset2 10 /* = long enought to accomodate the string given by "/" + "n%d_%d" */
+#define offset3 1 /* = long enough to accomodate the string "~" */
+
+/*
+   - log_dir : path of the directory where log files are stored
+   - loc dir : path of the directory where configurations in the imported format are stored
+               (loc stands for local, since imported configuration have to be used only
+               if each process reads the configurations locally)
+*/
 static char log_dir[NAME_SIZE],loc_dir[NAME_SIZE];
+
+
+/*
+   - cnfg_dir : path of the directory where configurations in the exported format are stored
+   - dat_dir : path of the directory where various data files (.dat, .par and .rng) are stored
+*/
 static char cnfg_dir[NAME_SIZE],dat_dir[NAME_SIZE];
+
+
 /*
    - log_file : name of the .log file used as stdout
    - log_save : name of the backup file of the .log file
    - end_file : name of the file (same as run name) with .extension used to signal early termination
 */
-static char log_file[NAME_SIZE],log_save[NAME_SIZE],end_file[NAME_SIZE];
-static char dat_file[NAME_SIZE],dat_save[NAME_SIZE];
-static char par_file[NAME_SIZE],par_save[NAME_SIZE];
-static char rng_file[NAME_SIZE],rng_save[NAME_SIZE];
-/*
-   - cnfg_file : name given to various files where the configurations are stored
-   - nbase : name given to the run
-   - outbase : name given to output files (=nbase by default)
-*/
-static char cnfg_file[NAME_SIZE],nbase[NAME_SIZE],outbase[NAME_SIZE];
+static char log_file[NAME_SIZE*2+offset],log_save[NAME_SIZE*2+offset+offset3],end_file[NAME_SIZE*2+offset];
+
 
 /*
+   - dat_file : name of the .dat file where the values of the correlators get stored
+   - dat_save : name of the .dat~ file used as backup for the .dat file
+*/
+static char dat_file[NAME_SIZE*2+offset],dat_save[NAME_SIZE*2+offset+offset3];
+
+
+/*
+   - par_file : name of the .par file containing the (lattice) parameters of the simulation
+   - par_save : name of the .par~ file used as backup for the .par file
+*/
+static char par_file[NAME_SIZE*2+offset],par_save[NAME_SIZE*2+offset+offset3];
+
+
+/*
+   - rng_file : name of the .rng file where the state of the random number generator is stored
+   - rng_save : name of .rng~ file used as backup for the .rng file
+*/
+static char rng_file[NAME_SIZE*2+offset],rng_save[NAME_SIZE*2+offset+offset3];
+
+
+/*
+   - cnfg_file : name given to various .cnfg files where the configurations are stored
+   - nbase : name given to the run, used to set the name of the cnfg file
+   - outbase : name used to constructu the name given to the .log, .end, .par, .dat and .rng output files
+               (if not specified in the input file by default outbase is set to be equal to nbase)
+*/
+static char cnfg_file[NAME_SIZE*2+offset2],nbase[NAME_SIZE],outbase[NAME_SIZE];
+
+
+/*pointers used to open files
    - fin : input file where the specifics of the simulation are written
    - flog : log file used as stdout where execution errors get written
-   - fdat : binary parameters file (containing the lat structure)
+   - fdat : used for data file and also for binary parameters file (containing the lat structure)
 */
 static FILE *fin=NULL,*flog=NULL,*fend=NULL,*fdat=NULL;
 
-/*************************** Definition of Functions ***********************************/
+
+
+/*******************************************************************************/
+/************************** Definition of Functions ****************************/
+/*******************************************************************************/
 
 
 /*function used to allocate the structure data*/
@@ -275,6 +363,9 @@ static void write_file_head(void)
    }
 }
 
+
+/*function used to check the compatibility of the current global file_head structure
+with what is written in the .dat file (function called by the check_old_dat function)*/
 static void check_file_head(void)
 {
    int i,ir,ie;
@@ -344,6 +435,9 @@ static void check_file_head(void)
    }
 }
 
+
+/*function that writes on the .dat file the values of the correlators
+(and the index of the gauge configuration they correspond to)*/
 static void write_data(void)
 {
    int iw;
@@ -392,6 +486,10 @@ static void write_data(void)
    }
 }
 
+
+/*function used to read the data stucture from the .dat file,
+returns 1 if something has been read, 0 if there is nothing to read
+(this function gets called by the check_old_Dat function)*/
 static int read_data(void)
 {
    int ir;
@@ -467,12 +565,12 @@ static void read_dirs(void)
       find_section("Directories"); /*pointer reading from input file is set after the string "[Directories]"*/
       read_line("log_dir","%s",log_dir); /*log_dir is set to the string written after "log_dir"*/
 
-      if (noexp) /*if configurations are in the imported file format...*/
+      if (noexp) /*if configurations are in the imported file format they have to be read from the local directory*/
       {
          read_line("loc_dir","%s",loc_dir); /*loc_dir is set to the string written after "loc_dir"*/
          cnfg_dir[0]='\0'; /*cnfg_dir is set to '\0' (is not read)*/
       }
-      else /*if configuration are in the usual exported file format...*/
+      else /*if configurations are in the usual exported file format then they are in the cnfg directory*/
       {
          read_line("cnfg_dir","%s",cnfg_dir); /*cnfg_dir is set to the string written after "cnfg_dir"*/
          loc_dir[0]='\0'; /*loc_dir is set to '\0' (is not read)*/
@@ -833,6 +931,8 @@ static void read_lat_parms(void)
 }
 
 
+/*function that reads the section "SAP" from the input file
+(this function is called by the read_solver function)*/
 static void read_sap_parms(void)
 {
    int bs[4];
@@ -848,6 +948,9 @@ static void read_sap_parms(void)
 }
 
 
+/*function that reads the sections "Deflation subspace",
+"Deflation subspace generation" and "Deflation projection" from the input file
+(this function is called by the read_solver function)*/
 static void read_dfl_parms(void)
 {
    int bs[4],Ns;
@@ -2164,7 +2267,11 @@ static void check_endflag(int *iend)
 }
 
 
-/***** main of the program *****/
+
+/*******************************************************************************/
+/***************************** Main of the Program *****************************/
+/*******************************************************************************/
+
 
 int main(int argc,char *argv[])
 {
@@ -2246,15 +2353,21 @@ int main(int argc,char *argv[])
 
       /*the actual computation of the correlators is done here*/
       set_data(nc); /*the correlator corresponding to the gauge configuration nc is computed and stored inside the structure data*/
-      write_data();
-
-      export_ranlux(nc,rng_file);
-      error_chk();
       
+      /*the computed correlators then gets stored*/
+      write_data(); /*writes on the .dat files the values of the correlators*/
+
+      /*some more info are written in the rng file*/
+      export_ranlux(nc,rng_file); /*the tag (nc) and the state of the random generator is written on the rng_file*/
+      
+      /*erros are checked*/
+      error_chk(); /*checks the status of the data and aborts if an error is detected*/
+      
+      /*then some estimate of the time required for the computation is done*/
+
       MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
       wt2=MPI_Wtime(); /*time measured after the nc-th configuration is processed*/
       wtavg+=(wt2-wt1); /*the time needed to processes the nc-th configuration is added to the total time needed*/
-      
 
       /*on process 0 the time needed to process the nc-th configuration and the exstimate of the average time
       needed to process one configuration are printed (to stdout that now is the .log file)*/
@@ -2266,12 +2379,12 @@ int main(int argc,char *argv[])
                 wtavg/(double)((nc-first)/step+1));
       }
 
-      /*once the current configuration has been computed the program checks if its execution has to be
-      terminated early by looking for the endflag
+      /*once the correlator corresponding to the current gauge configuration has been computed
+      the program checks if its execution has to be terminated early by looking for the endflag
       (the user can kill the program gently by creating a .end file with the same name of the run in the
       log directory, if such a file is found the function below sets the endflag to true)*/
 
-      check_endflag(&iend); /*check if the endlfag has been raised by the user (if so that's the last loop iteration)*/
+      check_endflag(&iend); /*check if the endlfag has been raised by the user (if so this is the last loop iteration)*/
 
       /*on process 0 before a new loop iteration the output gets flushed and the file gets saved*/
       if (my_rank==0)
