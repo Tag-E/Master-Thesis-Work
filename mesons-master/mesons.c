@@ -1512,13 +1512,11 @@ static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
 }
 
 
-
 /*function used to create a random spinor:
 the array eta is first set to 0 on the whole lattice, then at the timeslice x0 
 it gets filled with random doubles according to the random method specified (globally)*/
 static void random_source(spinor_dble *eta, int x0)
 {
-
    /*
       - y0 : x0 after a change of variable where the center is in the cartesian
             coordinate of the local process
@@ -1527,13 +1525,14 @@ static void random_source(spinor_dble *eta, int x0)
    */
    int y0,iy,ix; 
 
-   set_sd2zero(VOLUME,eta); /*eta is set to 0 on the whole volume*/
+   set_sd2zero(VOLUME,eta); /*eta is set to 0 on the whole lattice volume*/
 
    y0=x0-cpr[0]*L0; /*y0 is set to the distance between x0 and the center of the local process*/
    /*(cpr are the coordinates of the local process)*/
 
    /*if x0 lies inside the block of the current local process
    then the random vector should be generated in this process*/
+
    if ((y0>=0)&&(y0<L0)) /*i.e. if x0 inside the block of the current process ...*/
    {
 
@@ -1564,9 +1563,9 @@ static void random_source(spinor_dble *eta, int x0)
          }
       }
 
-      /*the above random generations are done entry by entry,
+      /*(the above random generations are done entry by entry,
       they can't be done in one shot like random_sd(L1*L2*L3, eta)
-      because the entries are on a timeslice, so they are not contiguous*/
+      because the entries are on a timeslice, so they are not contiguous)*/
 
    }
 
@@ -1615,7 +1614,7 @@ static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
    else if (sp.solver==SAP_GCR) /*if the solver is SAP_GCR*/
    {
 
-      /*initialization of sap solvers*/
+      /*initialization of sap solver*/
       sap=sap_parms(); /*sap set to the global structure with the parameters of the SAP preconditioner*/
       set_sap_parms(sap.bs,sp.isolv,sp.nmr,sp.ncy); /*set the parameters of the sap preconditioner*/
 
@@ -1634,7 +1633,7 @@ static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
    else if (sp.solver==DFL_SAP_GCR) /*if the solver is DFL_SAP_GCR*/
    {
 
-      /*initialization of sap solvers*/
+      /*initialization of sap solver*/
       sap=sap_parms(); /*sap set to the global structure with the parameters of the SAP preconditioner*/
       set_sap_parms(sap.bs,sp.isolv,sp.nmr,sp.ncy); /*set the parameters of the sap preconditioner*/
 
@@ -1649,6 +1648,7 @@ static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
       error_root((status[0]<0)||(status[1]<0),1,
                  "solve_dirac [mesons.c]","DFL_SAP_GCR solver failed "
                  "(status = %d,%d)",status[0],status[1]);
+
    }
    else /*if the specified solver is unknown raises an error*/
       error_root(1,1,"solve_dirac [mesons.c]",
@@ -1747,7 +1747,7 @@ void make_source(spinor_dble *eta, int type, spinor_dble *xi)
 }
 
 
-/*function to construct xi from eta and type as :
+/*function used to construct xi from eta and type as:
     xi = - GammaBar^dagger gamma5 eta
 where GammaBar is a gamma structure determined from type;
 the references in the documentation are equation 6 and table 1
@@ -1837,7 +1837,7 @@ void make_xi(spinor_dble *eta,int type,spinor_dble *xi)
 
 
 /*core function used to compute the correlator once all the input
-variable have been specified in the corresponding global structure*/
+variables have been specified in the corresponding global structure*/
 static void correlators(void)
 {
 
@@ -1864,7 +1864,7 @@ static void correlators(void)
               (wsd = Workspace of Spinor Double)
    */
    spinor_dble *eta,*xi,**zeta,**wsd;
-   complex_dble tmp; /*temporary complex variable*/
+   complex_dble tmp; /*temporary complex variable used to compute the value of the correlator*/
 
 
    /** allocation of the spinor fields **/
@@ -1876,13 +1876,13 @@ static void correlators(void)
    eta=wsd[0]; /*first array (field) in wsd is assigned to eta*/
    xi=wsd[1]; /*second array (field) in wsd is assigned to xi*/
    zeta=malloc(proplist.nmax*sizeof(spinor_dble*)); /*allocation of nprop spinors for zeta (why needed ??)*/
-   error(zeta==NULL,1,"correlators [mesons.c]","Out of memory"); /*check on allocation*/
+   error(zeta==NULL,1,"correlators [mesons.c]","Out of memory"); /*check on successful allocation*/
 
    /*zeta is now set to be the remaining spinors already reserved in wsd*/
    for (l=0;l<proplist.nmax;l++)
       zeta[l]=wsd[l+2];
 
-   /*why is the zeta allocation needed ?
+   /*why is the zeta allocation needed ??
    could
 
    zeta = wsd[2]
@@ -1920,13 +1920,13 @@ static void correlators(void)
       
 
       /*loop over random the noise vectors generated*/
-      for (inoise=0;inoise<nnoise;inoise++) /*i noise range from 0 to the total number of noise vectors*/
+      for (inoise=0;inoise<nnoise;inoise++) /*inoise range from 0 to the total number of noise vectors*/
       {
 
 
          /*informative print on process 0*/
          if (my_rank==0)
-            printf("      noise vector %i\n",inoise); /*the number of noise vectors being generated is written on the .log file*/
+            printf("      noise vector %i\n",inoise); /*the index of the noise vector being generated is written on the .log file*/
          
 
          /*generation of the random source:
@@ -1994,7 +1994,7 @@ static void correlators(void)
                      ip2=iprop;
 
                   /*the fact that for the second propagator the gamma structure required is GAMMA5 is
-                  because in this way zeta[ip2] is exactly the solution given in eq5 of the documentation*/
+                  because in this way zeta[ip2] is exactly the solution given in equation 5 of the documentation*/
                }
 
                /*to compute the correlator the reference equation is equation 7 in the documentation*/
@@ -2011,21 +2011,21 @@ static void correlators(void)
                   {
                      iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the local lattice*/
 
-                     /*first we compute the contribution from the given space-time point...*/
+                     /*first we compute the partial contribution from the given space-time point ...*/
 
                      tmp = spinor_prod_dble(1,0,xi+iy,zeta[ip2]+iy); /*tmp set to be the scalar product between xi and eta at position iy*/
                      /*(this tmp is a piece (at position laballed by iy) of the sum in equation 7,
                      indeed we have that xi is the piece inside curve brackets, and zeta[ip2] what
                      we get from equation 5 of the documentation)*/
 
-                     /*...then we sum it to the total correlator*/
+                     /*... then we sum it to the total correlator (the part on the local lattice)*/
 
                      data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
                         +file_head.tvals*icorr)].re += tmp.re; /*real part gets updated*/
                      data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
                         +file_head.tvals*icorr)].im += tmp.im; /*imaginary part gets updated*/
 
-                     /*in data.corr_tmp all the computed correlator get stored,
+                     /*in data.corr_tmp all the (locally) computed correlator get stored,
                      and they are indexed as shown in the two lines above
                      (cpr is the cartesian coordinate of the local process)*/
                   }
@@ -2033,7 +2033,7 @@ static void correlators(void)
 
             }
 
-         } /*end of loop over i corr*/
+         } /*end of loop over icorr*/
 
       } /*end of loop over inoise*/
 
@@ -2048,6 +2048,7 @@ static void correlators(void)
    complete results of all the correlators*/
    MPI_Allreduce(data.corr_tmp,data.corr,nnoise*ncorr*file_head.tvals*2
       ,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+
 
    /** memory deallocation**/
 
@@ -2066,7 +2067,7 @@ static void set_data(int nc)
    /*on process 0 prints to the .log file information regarding the correlator*/
    if (my_rank==0)
    {
-      printf("G(t) =  %.4e%+.4ei",data.corr[0].re,data.corr[0].im); /*prints the correlator at the firsttime,...*/
+      printf("G(t) =  %.4e%+.4ei",data.corr[0].re,data.corr[0].im); /*prints the correlator at the first time,...*/
       printf(",%.4e%+.4ei,...",data.corr[1].re,data.corr[1].im); /*...at the second time ...*/
       printf(",%.4e%+.4ei",data.corr[file_head.tvals-1].re,
                            data.corr[file_head.tvals-1].im); /*... and at the last time ...*/
@@ -2243,7 +2244,8 @@ int main(int argc,char *argv[])
             printf("Deflation subspace generation: status = %d\n",status[0]);
       }
 
-      set_data(nc);
+      /*the actual computation of the correlators is done here*/
+      set_data(nc); /*the correlator corresponding to the gauge configuration nc is computed and stored inside the structure data*/
       write_data();
 
       export_ranlux(nc,rng_file);
