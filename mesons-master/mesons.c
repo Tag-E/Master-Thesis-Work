@@ -98,7 +98,7 @@ static struct
 {
    int ncorr; /*number of correlators*/
    int nnoise; /*number of noise vector for each configuration*/
-   int tvals; /*= size of time lattice spaces times number of time processes (??)*/
+   int tvals; /*= size of time lattice spaces times number of time processes = number of time intervals*/
    int noisetype; /*type of noise vectors, either U1, Z2 or GAUSS*/
    double *kappa1; /*kappa of the first kind of quark, one for each correlator*/
    double *kappa2; /*kappa of the second kind of quark, one for each correlator*/
@@ -148,7 +148,7 @@ static int my_rank,noexp,append,norng,endian;
 /*
    - first : index of the first configuration
    - last : inde of the last configuration
-   - step : step used in the scanning of configurations (??)
+   - step : step used in the scanning of configurations
 */
 static int first,last,step;
 
@@ -158,7 +158,7 @@ static int first,last,step;
    - nprop, ncorr : number of different quark lines and of different correlators
    - nnoise : number of noise vector for each configuration
    - noisetype : either U1, Z2 or GAUSS (expand to something like 1,2,3)
-   - tvals : size of time lattice spaces times number of time processes (??)
+   - tvals : size of time lattice spaces times number of time processes = number of time intervals
 */
 static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
 
@@ -185,8 +185,8 @@ static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
 
 
 /*
-   - kappas : array containing the value of kappa for each propagator
-   - mus : array containing the value of mus for each propagator (??)
+   - kappas : array containing the value of kappa (hopping parameter->mass) for each propagator
+   - mus : array containing the value of mu (twisted mass) for each propagator
 */
 static double *kappas,*mus;
 
@@ -581,8 +581,7 @@ static void read_dirs(void)
       /*reading of "Configurations" section:
         - first is set to the index of the firt configuration
         - last is set to the index of the last configuration
-        - step is set to the step at which configurations are
-          scanned (?)
+        - step is set to the step at which configurations are scanned
       */
 
       find_section("Configurations"); /*pointer reading from input file is set after the string "Configurations"*/
@@ -669,7 +668,7 @@ static void read_lat_parms(void)
    double csw,cF; /*coefficient of sw term (csw) and of Fermion O(a) boundary counterterm (cF)*/
    char tmpstring[NAME_SIZE]; /*temporary string used for reading*/
    char tmpstring2[NAME_SIZE]; /*temporary string used for reading*/
-   int iprop,icorr,eoflg; /*index running on propagators (iprop), correlators (icorr), eoflg ??*/
+   int iprop,icorr,eoflg; /*index running on propagators (iprop), correlators (icorr), twisted mass flag (eoflg)*/
 
    /*on process 0 reads parameters from file*/
 
@@ -686,7 +685,7 @@ static void read_lat_parms(void)
       read_line("csw","%lf",&csw); /*csw coefficient read from input file*/
       read_line("cF","%lf",&cF); /*cF coefficient read from input file*/
 /* DP */      
-      read_line("eoflg","%d",eoflg); /*eoflg read from input file ---> ??????*/
+      read_line("eoflg","%d",eoflg); /*eoflg read from input file*/
 /* DP */
 
       /*check on the validity of the parameters read from input file*/
@@ -700,7 +699,7 @@ static void read_lat_parms(void)
                  "Specified nnoise must be larger than zero");
 
 /* DP */
-      /*eoflg must be either 0 or 1 ----> ?????*/
+      /*eoflg must be either 0 or 1*/
       error_root(eoflg<0,1,"read_lat_parms [mesons.c]",
 		 "Specified eoflg must be 0,1");
       error_root(eoflg>1,1,"read_lat_parms [mesons.c]",
@@ -769,7 +768,7 @@ static void read_lat_parms(void)
          find_section(tmpstring); /*reading pointer set in the section of the iprop-th propagator*/
          read_line("kappa","%lf",&kappas[iprop]); /*for the given propagator kappa is read from input file*/
          read_line("isp","%d",&isps[iprop]); /*for the given propagator the solver id is read from input file*/
-	      read_line("mus","%lf",&mus[iprop]); /*for the given propagator mus(??) is read from input file*/
+	      read_line("mus","%lf",&mus[iprop]); /*for the given propagator the twisted mass is read from input file*/
       }
 
       /*loop over the different correlators*/
@@ -879,8 +878,8 @@ static void read_lat_parms(void)
 
    MPI_Bcast(kappas,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(mus,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
-   MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-   MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+   /*MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);*/ /*commented becouse broadcasted twice (to be removed)*/
+   /*MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);*/ /*commented because brodcasted twice (to be removed)*/
    MPI_Bcast(isps,nprop,MPI_INT,0,MPI_COMM_WORLD);
 
    MPI_Bcast(props1,ncorr,MPI_INT,0,MPI_COMM_WORLD);
@@ -1677,7 +1676,7 @@ static void random_source(spinor_dble *eta, int x0)
 
 /*function that sets psi to be like the xi of eq 6 in the documentatation;
 in terms of the input of this function:
-psi = (Dw + i mu gamma5)^(-1) * eta --> right ??? */
+psi = (Dw + i mu gamma5)^(-1) * eta (??) */
 static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
                         int *status)
 {
@@ -2325,13 +2324,13 @@ int main(int argc,char *argv[])
       {
          save_ranlux(); /*save to global variables the current states of the random number generators rlxs and rlxd*/
          sprintf(cnfg_file,"%s/%sn%d_%d",loc_dir,nbase,nc,my_rank); /*get the name of the configuration file from input parameters*/
-         read_cnfg(cnfg_file); /*reads the configuration from the cnfg_file, saves it (where ??) and resets the generators*/
+         read_cnfg(cnfg_file); /*reads the configurations from the cnfg_file, saves them on global struct and resets the generators*/
          restore_ranlux(); /*set the states of the generators to the saved values (saved before the reset due to read_cnfg)*/
       }
       else /*if instead -noexp is not set the configurations are read in exported file format*/
       {
          sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc); /*get the name of the configuration file from input parameters*/
-         import_cnfg(cnfg_file); /*reads the configuration from the cnfg_file, saves it (where ??)*/
+         import_cnfg(cnfg_file); /*reads the configurations from the cnfg_file, saves them on global structure*/
       }
 
       /*the deflation subspace is generated*/

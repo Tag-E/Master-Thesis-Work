@@ -99,13 +99,13 @@ static struct
 {
    int ncorr; /*number of correlators*/
    int nnoise; /*number of noise vector for each configuration*/
-   int tvals; /*= size of time lattice spaces times number of time processes (??)*/
+   int tvals; /*= size of time lattice spaces times number of time processes = number of time intervals*/
    int noisetype; /*type of noise vectors, either U1, Z2 or GAUSS*/
    double *kappa1; /*kappa of the first kind of quark, one for each correlator*/
    double *kappa2; /*kappa of the second kind of quark, one for each correlator*/
 /* DP */ 
-   double *mus1; /*mus of the first kind of quark (??), one for each correlator*/
-   double *mus2; /*mus of the second kind of quark (??), one for each correlator*/
+   double *mus1; /*twisted mass of the first kind of quark, one for each correlator*/
+   double *mus2; /*twisted mass of the second kind of quark, one for each correlator*/
 /* DP */
    int *type1; /*array containing the Dirac structure of the first meson in each correlator*/
    int *type2; /*array containing the Dirac structure of the secnd meson in each correlator*/
@@ -151,7 +151,7 @@ static int my_rank,noexp,append,norng,endian;
 /*
    - first : index of the first configuration
    - last : inde of the last configuration
-   - step : step used in the scanning of configurations (?)
+   - step : step used in the scanning of configurations
 */
 static int first,last,step;
 
@@ -161,7 +161,7 @@ static int first,last,step;
    - nprop, ncorr : number of different quark lines and of different correlators
    - nnoise : number of noise vector for each configuration
    - noisetype : either U1, Z2 or GAUSS (expand to something like 1,2,3)
-   - tvals : size of time lattice spaces times number of time processes (??)
+   - tvals : size of time lattice spaces times number of time processes = number of time intervals
 */
 static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
 
@@ -188,8 +188,8 @@ static int ipgrd[2],*rlxs_state=NULL,*rlxd_state=NULL;
 
 
 /*
-   - kappas : array containing the value of kappa for each propagator
-   - mus : array containing the value of mus for each propagator (??)
+   - kappas : array containing the value of kappa (hopping parameter->mass) for each propagator
+   - mus : array containing the value of mu (twisted mass) for each propagator
 */
 static double *kappas,*mus;
 
@@ -612,8 +612,7 @@ static void read_dirs(void)
       /*reading of "Configurations" section:
         - first is set to the index of the firt configuration
         - last is set to the index of the last configuration
-        - step is set to the step at which configurations are
-          scanned (?)
+        - step is set to the step at which configurations are scanned
       */
 
       find_section("Configurations"); /*pointer reading from input file is set after the string "Configurations"*/
@@ -777,8 +776,8 @@ static void read_lat_parms(void)
    file_head.kappa1=malloc(ncorr*sizeof(double)); /*kappa of the first kind of quark, one for each correlator*/
    file_head.kappa2=malloc(ncorr*sizeof(double)); /*kappa of the second kind of quark, one for each correlator*/
 /* DP */   
-   file_head.mus1=malloc(ncorr*sizeof(double)); /*mus (??) of the first kind of quark, one for each correlator*/
-   file_head.mus2=malloc(ncorr*sizeof(double)); /*mus (??) of the second kind of quark, one for each correlator*/
+   file_head.mus1=malloc(ncorr*sizeof(double)); /*twisted mass of the first kind of quark, one for each correlator*/
+   file_head.mus2=malloc(ncorr*sizeof(double)); /*twisted mass of the second kind of quark, one for each correlator*/
 /* DP */
 
    file_head.type1=type1; /*Dirac structure of first meson, one for each correlator*/
@@ -787,10 +786,10 @@ static void read_lat_parms(void)
    file_head.isreal=malloc(ncorr*sizeof(int)); /*array with either 1 (pion-pion case) or 0 for each correlator (??)*/
 
    /*check of successful memory allocation*/
-   /*should I add here a check on mus1 and mus2 ???*/ /*????????????????*/
    error((kappas==NULL)||(mus==NULL)||(isps==NULL)||(props1==NULL)||
          (props2==NULL)||(type1==NULL)||(type2==NULL)||(x0s==NULL)||
          (file_head.kappa1==NULL)||(file_head.kappa2==NULL)||
+         (file_head.mus1==NULL)||(file_head.mus2==NULL)||
          (file_head.isreal==NULL),
          1,"read_lat_parms [mesons.c]","Out of memory");
 
@@ -806,7 +805,7 @@ static void read_lat_parms(void)
          find_section(tmpstring); /*reading pointer set in the section of the iprop-th propagator*/
          read_line("kappa","%lf",&kappas[iprop]); /*for the given propagator kappa is read from input file*/
          read_line("isp","%d",&isps[iprop]); /*for the given propagator the solver id is read from input file*/
-	      read_line("mus","%lf",&mus[iprop]); /*for the given propagator mus(??) is read from input file*/
+	      read_line("mus","%lf",&mus[iprop]); /*for the given propagator the twisted mass is read from input file*/
       }
       /*loop over the different correlators*/
       for(icorr=0; icorr<ncorr; icorr++)
@@ -915,10 +914,10 @@ static void read_lat_parms(void)
 
    MPI_Bcast(kappas,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(mus,nprop,MPI_DOUBLE,0,MPI_COMM_WORLD);
-   MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-   MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
+   /*MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);*/ /*commented becouse broadcasted twice (to be removed)*/
+   /*MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);*/ /*commented becouse broadcasted twice (to be removed)*/
 /* DP */
-   MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD); /*broadcasted twice ????*/ /*?????????????????????*/
+   /*MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD);*/ /*commented becouse broadcasted twice (to be removed)*/
 /* DP */
    MPI_Bcast(isps,nprop,MPI_INT,0,MPI_COMM_WORLD);
 
@@ -960,8 +959,8 @@ static void read_lat_parms(void)
       file_head.kappa2[icorr]=kappas[props2[icorr]]; /*kappa of second quark saved to global structure*/
 
 /* DP */
-      file_head.mus1[icorr]=mus[props1[icorr]]; /*mus (??) of first quark saved to global structure*/
-      file_head.mus2[icorr]=mus[props2[icorr]]; /*mus (??) of second quark saved to global structure*/
+      file_head.mus1[icorr]=mus[props1[icorr]]; /*twisted mass of first quark saved to global structure*/
+      file_head.mus2[icorr]=mus[props2[icorr]]; /*twisted mass of second quark saved to global structure*/
 /* DP */
 
       /*in the pion-pion case isreal is set to 1, in any other case to 0*/
@@ -1733,7 +1732,7 @@ static void random_source(spinor_dble *eta, int x0)
 
 /*function that sets psi to be like the xi of eq 6 in the documentatation;
 in terms of the input of this function:
-psi = (Dw + i mu gamma5)^(-1) * eta --> right ??? */
+psi = (Dw + i mu gamma5)^(-1) * eta  (??) */
 static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
                         int *status)
 {
@@ -1767,7 +1766,7 @@ static void solve_dirac(int prop, spinor_dble *eta, spinor_dble *psi,
       mulg5_dble(VOLUME,psi); /*psi gets multiplied by gamma5*/
 
       /*after this last function psi in now equal to the xi of equation 6
-      of the documentation -> with maybe the twisted mass as extra(??)*/
+      of the documentation -> with maybe the twisted mass as extra (??)*/
 
    }
    else if (sp.solver==SAP_GCR) /*if the solver is SAP_GCR*/
@@ -2032,7 +2031,7 @@ static void correlators(void)
    wsd=reserve_wsd(proplist.nmax+2); /*a workspace with nprop+2 spinor fields is allocated*/
    eta=wsd[0]; /*first array (field) in wsd is assigned to eta*/
    xi=wsd[1]; /*second array (field) in wsd is assigned to xi*/
-   zeta=malloc(proplist.nmax*sizeof(spinor_dble*)); /*allocation of nprop spinors for zeta (why needed ??)*/
+   zeta=malloc(proplist.nmax*sizeof(spinor_dble*)); /*allocation of nprop spinors for zeta (why needed ?? )*/
    error(zeta==NULL,1,"correlators [mesons.c]","Out of memory"); /*check on successful allocation*/
 
    /*zeta is now set to be the remaining spinors already reserved in wsd*/
@@ -2374,13 +2373,13 @@ int main(int argc,char *argv[])
       {
          save_ranlux(); /*save to global variables the current states of the random number generators rlxs and rlxd*/
          sprintf(cnfg_file,"%s/%sn%d_%d",loc_dir,nbase,nc,my_rank); /*get the name of the configuration file from input parameters*/
-         /*read_cnfg(cnfg_file);*/ /*reads the configuration from the cnfg_file, saves it (where ??) and resets the generators*/
+         /*read_cnfg(cnfg_file);*/ /*reads the configurations from the cnfg_file, saves them on global struct and resets the generators*/
          restore_ranlux(); /*set the states of the generators to the saved values (saved before the reset due to read_cnfg)*/
       }
       else /*if instead -noexp is not set the configurations are read in exported file format*/
       {
          sprintf(cnfg_file,"%s/%sn%d",cnfg_dir,nbase,nc); /*get the name of the configuration file from input parameters*/
-         /*import_cnfg(cnfg_file);*/ /*reads the configuration from the cnfg_file, saves it (where ??)*/
+         /*import_cnfg(cnfg_file);*/ /*reads the configurations from the cnfg_file, saves them on global structure*/
       }
 
       /*the deflation subspace is generated*/
