@@ -2160,6 +2160,12 @@ static void correlators(void)
 
                for (y0=0;y0<L0;y0++) /*sum over the time values y0*/
                {
+
+                  /*code optimization that can be made here:
+                  int temp_index = y0*L1*L2*L3;
+                  int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
+                  */
+
                   for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
                   {
                      iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the local lattice*/

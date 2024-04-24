@@ -33,12 +33,12 @@ eoflg        0                    # twisted mass flag (even-odd flag) (added by 
 [Propagator 0]
 kappa        0.121951219512195    # hopping parameter
 isp          0                    # solver id
-mus 0.0                           # don't know what is
+mus          0.0                  # twisted mass
 
 [Propagator 1]
 kappa        0.12
 isp          1
-mus 0.0
+mus          0.0
 
 ################################## For every correlator a Correlator
                                  # section, ncorr in total
