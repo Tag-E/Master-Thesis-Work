@@ -3,7 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",
+                "${workspaceFolder}/mesons-master/**",
+                "${workspaceFolder}/openQCD-1.2/**",
                 "/usr/lib/x86_64-linux-gnu/openmpi/include"
             ],
             "defines": [],

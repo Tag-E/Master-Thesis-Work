@@ -38,7 +38,8 @@ CFLAGS = -std=c89 -pedantic -fstrict-aliasing -Wall -Wno-long-long -Wstrict-prot
 
 
 
-MAIN = tm_mesons sflds_tests
+#MAIN = tm_mesons sflds_tests
+MAIN = 4fop_tm_mesons sflds_tests
 
 ARCHIVE = archive sarchive
 
