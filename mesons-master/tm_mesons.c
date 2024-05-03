@@ -1613,7 +1613,7 @@ static void make_proplist(void)
       j=0; /*index counting the propagators founded at the i-th x0*/
       for (k=0;k<MAX_TYPE;k++) /*loop over the type of Dirac structures*/
       {
-         for (iprop=0;iprop<nprop;iprop++) /*when the Dirac structure is one of the registered ones*/
+         for (iprop=0;iprop<nprop;iprop++) /*loop over the number of propagators*/
          {
             if (kappatype[k+MAX_TYPE*iprop]) /*when the Dirac structure is one of the registered ones*/
             {

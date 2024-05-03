@@ -21,6 +21,7 @@ seed         73099
 [Measurements]
 nprop        2                    # number of different quark lines
 ncorr        3                    # number of different correlators
+n4fop        2                    # number of 2 points function with 4fop to be computed
 nnoise       100                  # number of noise vectors / conf
 noise_type   U1                   # noise type: U1 or Z2 or GAUSS
 csw          1.4951               # Dirac operator options 
@@ -56,6 +57,15 @@ x0           8
 iprop        0 1
 type         G1 G1
 x0           6
+
+################################# For every 4fop correlator a 4fop
+                                # section, n4fop in total
+
+[Corr4fop 0]
+icorr        0 1                # disconnected correlators appearing in the 4fop correlator
+
+[Corr4fop 1]
+icorr        0 2 
 
 ################################# For every solver id used, one Solver
                                 # section, as in openQCD 

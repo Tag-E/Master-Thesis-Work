@@ -100,6 +100,7 @@ static char line[NAME_SIZE+1];
 /*struct containing the parameters of the input file related to the correlators*/
 static struct
 {
+   int n4fop; /*ET: number of correlators with insertion of 4fop to be computed*/
    int ncorr; /*number of correlators*/
    int nnoise; /*number of noise vector for each configuration*/
    int tvals; /*= size of time lattice spaces times number of time processes = number of time intervals*/
@@ -114,6 +115,8 @@ static struct
    int *type2; /*array containing the Dirac structure of the secnd meson in each correlator*/
    int *x0; /*array containing the source time slice of each correlator*/
    int *isreal; /*array containing 1 for pion-pion correlators, 0 otherwise (??)*/
+   int *corr1; /*ET: array with the index of the first correlator in the 4fop_corr*/
+   int *corr2; /*ET: array with the index of the second correlator in the 4fop_corr*/
 } file_head;
 
 
@@ -127,6 +130,17 @@ static struct
    complex_dble *corr_tmp; /*partial value of the correlators computed by a single process*/
    int nc; /*index of the gauge configuration the correlator is related to*/
 } data;
+
+
+/*ET: structure resembling data but with the information needed for the correlation functions
+with the insertion of the 4 fermion operator*/
+static struct
+{
+   complex_dble *corr4fop; /*array with the value of the correlator, one entry for each y0 and each correlator*/
+   complex_dble *corr4fop_tmp; /*partial value of the correlator computed by a single process*/
+   complex_dble *corr_tmp_local; /*temporary corr array, with (local process) space-time index and icorr index*/
+   int nc; /*index of the gauge configuration the correlator is related to*/
+} data_4fop;
 
 
 /*structure containing the list with all the propagators and their information*/
@@ -161,12 +175,13 @@ static int first,last,step;
 
 /*
    - level, seed : parameters of the random generator
+   - n4fop : number of correlators with insertion of 4 fermion operators to be computed
    - nprop, ncorr : number of different quark lines and of different correlators
    - nnoise : number of noise vector for each configuration
    - noisetype : either U1, Z2 or GAUSS (expand to something like 1,2,3)
    - tvals : size of time lattice spaces times number of time processes = number of time intervals
 */
-static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
+static int level,seed,n4fop,nprop,ncorr,nnoise,noisetype,tvals;
 
 
 /*
@@ -178,6 +193,13 @@ static int level,seed,nprop,ncorr,nnoise,noisetype,tvals;
    - x0s : array containing the time slice of the source of each correlator
 */
 static int *isps,*props1,*props2,*type1,*type2,*x0s;
+
+/*ET: list to keep track of the corr in each 4fop*/
+/*
+   - corrs1 : array with the indices of the first corr in each disconnected 4fop
+   - corrs2 : array with the indices of the second corr in each disconnected 4fop
+*/
+static int *corrs1, *corrs2;
 
 
 /*
@@ -279,6 +301,24 @@ static FILE *fin=NULL,*flog=NULL,*fend=NULL,*fdat=NULL;
 /************************** Definition of Functions ****************************/
 /*******************************************************************************/
 
+/*ET: function used to allocate the structure data_4fop*/
+static void alloc_data4fop(void)
+{
+   /*the number of complex double needed is equal to the number of correlators with 4f operators
+   times the number of time intervals (such a quantity for corr4fop and for the temporary counterpart
+   corr4fop_tmp)*/
+
+   /*memory allocation*/
+   data_4fop.corr4fop=malloc(file_head.n4fop*file_head.tvals*sizeof(complex_dble));
+   data_4fop.corr4fop_tmp=malloc(file_head.n4fop*file_head.tvals*sizeof(complex_dble));
+
+   data_4fop.corr_tmp_local=malloc(L1*L2*L3*L0*file_head.ncorr*sizeof(complex_dble)); /*correlators on local process*/
+   
+   /*check on correct memory allocation*/
+   error((data_4fop.corr4fop==NULL)||(data_4fop.corr4fop_tmp==NULL),1,"alloc_data4fop [4fop_tm_mesons.c]",
+         "Unable to allocate data arrays");
+}
+
 
 /*function used to allocate the structure data*/
 static void alloc_data(void)
@@ -310,10 +350,16 @@ static void write_file_head(void)
    int i;
    double dbl[1];
 
-   istd[0]=(stdint_t)(file_head.ncorr);
+   /*ET: also the number of correlators with 4f operators need to be written*/
+   istd[0]=(stdint_t)(file_head.n4fop);
    if (endian==BIG_ENDIAN)
       bswap_int(1,istd);
    iw=fwrite(istd,sizeof(stdint_t),1,fdat);
+
+   istd[0]=(stdint_t)(file_head.ncorr);
+   if (endian==BIG_ENDIAN)
+      bswap_int(1,istd);
+   iw+=fwrite(istd,sizeof(stdint_t),1,fdat); /*ET: iw+= cambiato da iw=*/
 
    istd[0]=(stdint_t)(file_head.nnoise);
    if (endian==BIG_ENDIAN)
@@ -330,8 +376,26 @@ static void write_file_head(void)
       bswap_int(1,istd);
    iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
-   error_root(iw!=4,1,"write_file_head [mesons.c]",
+   error_root(iw!=5,1,"write_file_head [mesons.c]",
+              "Incorrect write count"); /*ET: write count cambiato a 5 da 4*/
+
+   /*ET:loop per scrivere tutti i dettagli dei 4fop (le liste di indice di corr1 e corr2)*/
+   for (i=0;i<file_head.n4fop;i++)
+   {
+      istd[0]=(stdint_t)(file_head.corr1[i]);
+      if (endian==BIG_ENDIAN)
+         bswap_int(1,istd);
+      iw=fwrite(istd,sizeof(stdint_t),1,fdat);
+
+      istd[0] = file_head.corr2[i];
+      if (endian==BIG_ENDIAN)
+         bswap_int(1,istd);
+      iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
+
+      error_root(iw!=2,1,"write_file_head [mesons.c]",
               "Incorrect write count");
+   }
+   
    for (i=0;i<file_head.ncorr;i++)
    {
       dbl[0] = file_head.kappa1[i];
@@ -392,10 +456,16 @@ static void check_file_head(void)
    stdint_t istd[1];
    double dbl[1];
 
+   /*ET: check also on the variable n4fop*/
    ir=fread(istd,sizeof(stdint_t),1,fdat);
    if (endian==BIG_ENDIAN)
       bswap_int(1,istd);
-   ie=(istd[0]!=(stdint_t)(file_head.ncorr));
+   ie=(istd[0]!=(stdint_t)(file_head.n4fop));
+
+   ir=fread(istd,sizeof(stdint_t),1,fdat);
+   if (endian==BIG_ENDIAN)
+      bswap_int(1,istd);
+   ie+=(istd[0]!=(stdint_t)(file_head.ncorr)); /*ET: ie modified to += from =*/
 
    ir+=fread(istd,sizeof(stdint_t),1,fdat);
    if (endian==BIG_ENDIAN)
@@ -412,10 +482,30 @@ static void check_file_head(void)
       bswap_int(1,istd);
    ie+=(istd[0]!=(stdint_t)(file_head.noisetype));
 
-   error_root(ir!=4,1,"check_file_head [mesons.c]",
-              "Incorrect read count");
+   error_root(ir!=5,1,"check_file_head [mesons.c]",
+              "Incorrect read count"); /*ET: read count modified to 5 from 4*/
    error_root(ie!=0,1,"check_file_head [mesons.c]",
               "Unexpected value of ncorr, nnoise, tvals or noisetype");
+
+   /*ET: added the reading on the details of th 4fop correlators*/
+   for (i=0;i<file_head.n4fop;i++)
+   {
+      ir=fread(istd,sizeof(stdint_t),1,fdat);
+      if (endian==BIG_ENDIAN)
+         bswap_int(1,istd);
+      ie=(istd[0]!=(stdint_t)(file_head.corr1[i]));
+
+      ir=fread(istd,sizeof(stdint_t),1,fdat);
+      if (endian==BIG_ENDIAN)
+         bswap_int(1,istd);
+      ie+=(istd[0]!=(stdint_t)(file_head.corr2[i])); 
+
+      error_root(ir!=2,1,"check_file_head [mesons.c]",
+              "Incorrect read count");
+      error_root(ie!=0,1,"check_file_head [mesons.c]",
+              "Unexpected value of corr1, corr2");
+   }
+   
    for (i=0;i<file_head.ncorr;i++)
    {
       ir=fread(dbl,sizeof(double),1,fdat);
@@ -470,6 +560,67 @@ static void check_file_head(void)
 }
 
 
+/*ET: function that writes on the .dat file the values of the 4fop correlators
+(and the index of the gauge configuration they correspond to)*/
+static void write_data_4fop(void)
+{
+   int iw; /*counter used to write*/
+   int nw; /*total number of elements to be written*/
+   int chunk; /*size of each chunk that is written to file (??)*/
+   int i_4fop,i; /*indices used in the function*/
+
+   /*the data is written only on process 0*/
+   if (my_rank==0)
+   {
+      /*open data file and check on correct opening procedure*/
+      fdat=fopen(dat_file,"ab");
+      error_root(fdat==NULL,1,"write_data [mesons.c]",
+                 "Unable to open dat file");
+
+      /*first we write the index of the gauge configuration and the 4fop complete correlators*/
+
+      nw = 1; /*total number of writing so far = 1 (we write nc below)*/
+
+      /*swap of bit before writing if big endian*/
+      if(endian==BIG_ENDIAN)
+      {
+         bswap_double(file_head.tvals*file_head.n4fop*2,
+                      data_4fop.corr4fop);
+         bswap_int(1,&(data.nc));
+      }
+
+      /*writing of nc*/
+      iw=fwrite(&(data.nc),sizeof(int),1,fdat);
+
+      /*then we write the data for each 4fop corr*/
+
+      for (i_4fop=0;i_4fop<file_head.n4fop;i_4fop++)
+      {
+         chunk=file_head.tvals*2; /*(2-file_head.isreal[icorr]); --> removed the shortcut for real correlators*/
+         nw+=chunk; /*update the writing count*/
+         iw+=fwrite(&(data_4fop.corr4fop[i_4fop*file_head.tvals]),
+                       sizeof(double),chunk,fdat);
+      }
+
+      /*swap of bit after writing if big endian to restore initial situation*/
+      if(endian==BIG_ENDIAN)
+      {
+         bswap_double(file_head.tvals*file_head.n4fop*2,
+                      data_4fop.corr4fop);
+         bswap_int(1,&(data_4fop.nc));
+      }
+
+      /*check on correct writing count*/
+      error_root(iw!=nw,1,"write_data [mesons.c]",
+                 "Incorrect write count");
+
+      /*close data file*/
+      fclose(fdat);
+
+   }
+}
+
+
 /*function that writes on the .dat file the values of the correlators
 (and the index of the gauge configuration they correspond to)*/
 static void write_data(void)
@@ -519,6 +670,57 @@ static void write_data(void)
       fclose(fdat);
    }
 }
+
+
+/*ET: function used to read the data_4fop stucture from the .dat file,
+returns 1 if something has been read, 0 if there is nothing to read
+(this function gets called by the check_old_Dat function)*/
+static int read_data_4fop(void)
+{
+   int ir; /*index used for the reading count*/
+   int nr; /*total readings to be done*/
+   int chunk; /*size of the chunk written on the file*/
+   int i_4fop,i; /*indices used in the functin*/
+   /*double zero; --> not needed here since i removed the isreal shortcut */
+
+   /*first we read nc*/
+
+   nr=1;
+   ir=fread(&(data.nc),sizeof(int),1,fdat);
+
+   /*then we read each 4 fop corr*/
+
+   for (i_4fop=0;i_4fop<file_head.n4fop;i_4fop++)
+   {
+      /*size of the chunk to be read */
+      chunk=file_head.tvals*2;
+      nr+=chunk; /*count update*/
+
+      /*reading*/
+      ir+=fread(&(data_4fop.corr4fop[i_4fop*file_head.tvals]),
+                    sizeof(double),chunk,fdat);
+
+   }
+
+   /*if nothing has been read the function returns*/
+   if (ir==0)
+      return 0;
+
+   /*check on correct reading count*/
+   error_root(ir!=nr,1,"read_data [mesons.c]",
+                 "Read error or incomplete data record");
+
+   /*if the machine is big endian swaps the bit of the read input (that is always little endian)*/
+   if(endian==BIG_ENDIAN)
+   {
+      bswap_double(nr,data.corr);
+      bswap_int(1,&(data.nc));
+   }
+   
+   return 1;
+
+}
+
 
 
 /*function used to read the data stucture from the .dat file,
@@ -703,6 +905,7 @@ static void read_lat_parms(void)
    char tmpstring[NAME_SIZE]; /*temporary string used for reading*/
    char tmpstring2[NAME_SIZE]; /*temporary string used for reading*/
    int iprop,icorr,eoflg; /*index running on propagators (iprop), correlators (icorr), twisted mass flag (eoflg)*/
+   int i_4fop; /*ET: index running of 4fop corr*/
 
    /*on process 0 reads parameters from file*/
 
@@ -714,6 +917,7 @@ static void read_lat_parms(void)
       find_section("Measurements"); /*reading pointer set the line after the string "[Measurements]"*/
       read_line("nprop","%d",&nprop); /*nprop is set to the number of different quark lines written in the input file*/
       read_line("ncorr","%d",&ncorr); /*ncorr is set to the number of different correlators written in the input file*/
+      read_line("n4fop","%d",&n4fop); /*ET: n4fop is set to the number of different corr with 4fop written in the input file*/
       read_line("nnoise","%d",&nnoise); /*nnoise is set to the number of noise vector for each configuration*/
       read_line("noise_type","%s",tmpstring); /*noise_type set to U1, Z2 or GAUSS according to input file*/
       read_line("csw","%lf",&csw); /*csw coefficient read from input file*/
@@ -731,6 +935,9 @@ static void read_lat_parms(void)
                  "Specified ncorr must be larger than zero");
       error_root(nnoise<1,1,"read_lat_parms [mesons.c]",
                  "Specified nnoise must be larger than zero");
+      /*ET: also n4fop must be*/
+      error_root(n4fop<1,1,"read_lat_parms [mesons.c]",
+                 "Specified n4fop must be larger than zero");
 
 /* DP */
       /*eoflg must be either 0 or 1*/
@@ -757,6 +964,7 @@ static void read_lat_parms(void)
 
    MPI_Bcast(&nprop,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&ncorr,1,MPI_INT,0,MPI_COMM_WORLD);
+   MPI_Bcast(&n4fop,1,MPI_INT,0,MPI_COMM_WORLD); /*ET: broadcast of n4fop*/
    MPI_Bcast(&nnoise,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&noisetype,1,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
@@ -795,6 +1003,17 @@ static void read_lat_parms(void)
          (file_head.mus1==NULL)||(file_head.mus2==NULL)||
          (file_head.isreal==NULL),
          1,"read_lat_parms [mesons.c]","Out of memory");
+
+   /*ET: allocation of the two array needed for a 4fop corr*/
+   file_head.corr1=malloc(n4fop*sizeof(int)); /*indices of the correlator1 in the 4fop correlation functions*/
+   file_head.corr2=malloc(n4fop*sizeof(int)); /*indices of the correlator1 in the 4fop correlation functions*/
+   error((file_head.corr1==NULL)||(file_head.corr2==NULL),
+          1,"read_lat_parms [mesons.c]","Out of memory");
+   /*ET: also allocation of array needed for 4fop*/
+   corrs1=malloc(n4fop*sizeof(int));
+   corrs2=malloc(n4fop*sizeof(int));
+   error((corrs1==NULL)||(corrs2==NULL),
+          1,"read_lat_parms [mesons.c]","Out of memory");
 
    /*on process 0 reads from the input file the parameters
    related to each of the nprop propagators and each of the ncorr correlators*/
@@ -910,6 +1129,22 @@ static void read_lat_parms(void)
          error_root((x0s[icorr]<=0)||(x0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [mesons.c]",
                  "Specified time x0 is out of range");
       }
+
+      /*ET: loop over the 4fop corr */
+      for(i_4fop=0; i_4fop<n4fop; i_4fop++)
+      {
+         sprintf(tmpstring,"Corr4fop %i",i_4fop); /*temporary string set to the 4fop correlator identifier*/
+         find_section(tmpstring); /*reading pointer set in the section of the icorr-th correlator*/
+
+         /*the types of the first and the second quarks are read from the input file and
+         the validity of the input parameters is checked (they must range from 0 to to nprop-1)*/
+         read_line("icorr","%d %d",&corrs1[i_4fop],&corrs2[i_4fop]);
+         error_root((corrs1[i_4fop]<0)||(corrs1[i_4fop]>=ncorr),1,"read_lat_parms [mesons.c]",
+                 "4fop index out of range");
+         error_root((corrs2[i_4fop]<0)||(corrs2[i_4fop]>=ncorr),1,"read_lat_parms [mesons.c]",
+                 "4fop index out of range");
+      }
+
    }
 
    /*broadcast of parameters read on process 0 to
@@ -929,6 +1164,10 @@ static void read_lat_parms(void)
    MPI_Bcast(type1,ncorr,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(type2,ncorr,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(x0s,ncorr,MPI_INT,0,MPI_COMM_WORLD);
+
+   /*ET: bcast of corrs1 and corrs2*/
+   MPI_Bcast(corrs1,n4fop,MPI_INT,0,MPI_COMM_WORLD);
+   MPI_Bcast(corrs2,n4fop,MPI_INT,0,MPI_COMM_WORLD);
 
    /*lattice parameters are saved in global structure:
       - lat : set_lat_parms specifies the parameters of the lat structure, and below
@@ -972,6 +1211,13 @@ static void read_lat_parms(void)
          file_head.isreal[icorr]=1;
       else
          file_head.isreal[icorr]=0;
+   }
+
+   /*ET: global corrs1 and corrs2 copied inside the global file_head struct*/
+   for(i_4fop=0; i_4fop<n4fop; i_4fop++)
+   {
+      file_head.corr1[i_4fop] = corrs1[i_4fop];
+      file_head.corr2[i_4fop] = corrs2[i_4fop];
    }
 
    /*the parameters in the lat structure get saved in the fdat file,
@@ -1448,6 +1694,7 @@ static void print_info(void)
          printf("Measurements:\n");
          printf("nprop     = %i\n",nprop);
          printf("ncorr     = %i\n",ncorr);
+         printf("n4fop     = %i\n",n4fop); /*ET: print of the n4fop*/
          printf("nnoise    = %i\n",nnoise);
          if (noisetype==Z2_NOISE)
             printf("noisetype = Z2\n");
@@ -1473,6 +1720,11 @@ static void print_info(void)
             printf("iprop  = %i %i\n",props1[i],props2[i]);
             printf("type   = %i %i\n",type1[i],type2[i]); /*TODO: strings*/
             printf("x0     = %i\n\n",x0s[i]);
+         }
+         /*ET: print of the 4fop*/
+         for(i=0; i<n4fop; i++)
+         {
+            printf("icorr = %i %i\n",corrs1[i],corrs2[i]);
          }
       }
       print_solver_parms(&isap,&idfl);
@@ -1609,14 +1861,14 @@ static void make_proplist(void)
       
       
       /*with the following loop the arrays prop and type get filled:
-         - prop[i][j] contains the indicex of the j-th propagator positioned at the i-th x0 value
+         - prop[i][j] contains the index of the j-th propagator positioned at the i-th x0 value
          - type[i][j] contains the Dirac structure of the j-th propagator positioned at the i-th x0 value
       */
 
       j=0; /*index counting the propagators founded at the i-th x0*/
       for (k=0;k<MAX_TYPE;k++) /*loop over the type of Dirac structures*/
       {
-         for (iprop=0;iprop<nprop;iprop++) /*when the Dirac structure is one of the registered ones*/
+         for (iprop=0;iprop<nprop;iprop++) /*loop over the number of propagators*/
          {
             if (kappatype[k+MAX_TYPE*iprop]) /*when the Dirac structure is one of the registered ones*/
             {
@@ -2023,6 +2275,8 @@ static void correlators(void)
               that are eta, xi and other n fields contained in zeta
               (wsd = Workspace of Spinor Double)
    */
+   int i4fop; /*ET: index running over the 4fop correlators*/
+   int corr1,corr2; /*ET: indices of the correlators appearing in the disconnected 4fop*/
    spinor_dble *eta,*xi,**zeta,**wsd;
    complex_dble tmp; /*temporary complex variable used to compute the value of the correlator*/
 
@@ -2054,10 +2308,24 @@ static void correlators(void)
 
    /*the total number of values of the correlators needed is number of noise vectors times number of correlators
    times number of time intervals, they are all initialized to 0*/
+   /*cancelET:
    for (l=0;l<nnoise*ncorr*tvals;l++)
    {
       data.corr_tmp[l].re=0.0;
       data.corr_tmp[l].im=0.0;
+   }
+   */
+
+   /*ET: initialization of array used by the local process and globally*/
+   for (l=0;l<n4fop*tvals;l++) /*initialize corr4fop[y0,i4fop] to 0*/
+   {
+      data_4fop.corr4fop_tmp[l].re=0.0;
+      data_4fop.corr4fop_tmp[l].im=0.0;
+   }
+   for (l=0;l<ncorr*L1*L2*L3*L0;l++) /*initialize corr_tmp_local[x,y,z,t,icorr] to 0*/
+   {
+      data_4fop.corr_tmp_local[l].re=0.0;
+      data_4fop.corr_tmp_local[l].im=0.0;
    }
 
    /** begin of the actual computation of the correlator **/
@@ -2104,7 +2372,7 @@ static void correlators(void)
                printf("         type=%i, prop=%i, status:",
                    proplist.type[ix0][iprop], proplist.prop[ix0][iprop]); /*type and index of prop printed on .log*/
             
-            /*the stochastic sources needed for the invarision of the Dirac operator are now constructed:
+            /*the stochastic sources needed for the inversion of the Dirac operator are now constructed:
                - zeta (in documentation) : is constructed from eta
                - xi (in documentation) : is constructerd from the xi obtained by the following function
             */
@@ -2157,7 +2425,7 @@ static void correlators(void)
 
                /*with the following function the piece inside curve brackets in equation 7 is computed*/
 
-               make_xi(zeta[ip1],type2[icorr],xi); /*xi is set to be -GammaBar^dagger gamam5 zeta*/
+               make_xi(zeta[ip1],type2[icorr],xi); /*xi is set to be -GammaBar^dagger gamma5 zeta*/
 
                /*to perform the computation we have to sum over y*/
 
@@ -2182,10 +2450,19 @@ static void correlators(void)
 
                      /*... then we sum it to the total correlator (the part on the local lattice)*/
                      
-                     data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
-                        +file_head.tvals*icorr)].re += tmp.re; /*real part gets updated*/
-                     data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
-                        +file_head.tvals*icorr)].im += tmp.im; /*imaginary part gets updated*/
+                     /*cancelET:*/
+                     /*data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
+                        +file_head.tvals*icorr)].re += tmp.re;*/ /*real part gets updated*/
+                     /*data.corr_tmp[inoise+nnoise*(cpr[0]*L0+y0
+                        +file_head.tvals*icorr)].im += tmp.im;*/ /*imaginary part gets updated*/
+
+                     /*ET: what I'd like to have (is the index right??)
+                     data_new.corr_tmp[iy + L0*L1*L2*L3 *icorr] += ... ; in this way I store data(y0, l, icorr)
+                     and at this point what i have to change is all the initialization of data
+                     */
+                     data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*icorr].re += tmp.re; /*array gets updated*/
+                     data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*icorr].im += tmp.im;
+                     /*the l loop could be up to L1*L2*L3*L0, removing the y0 loop*/
 
                      /*in data.corr_tmp all the (locally) computed correlator get stored,
                      and they are indexed as shown in the two lines above
@@ -2203,13 +2480,62 @@ static void correlators(void)
 
    /** final result**/
 
+   
+
+   /*ET: temporary variables to compute the product between two complex doubles*/
+   double re1,re2,im1,im2;
+
+   /*ET: here loop over 4 point func*/
+   for(i4fop=0; i4fop < n4fop; i4fop++){
+
+      /*for each function with 4fop I select the two correlators*/
+
+      corr1 = file_head.corr1[i4fop]; 
+      corr2 =  file_head.corr1[i4fop];
+
+     /*then loop over space time*/
+
+      for (y0=0;y0<L0;y0++)
+      {
+         for(l=0;l<L1*L2*L3;l++)
+         {
+            iy = ipt[l+y0*L1*L2*L3];
+
+            /*to compute the product between complex variables*/
+            re1 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr1].re;
+            im1 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr1].im;
+            re2 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr2].re;
+            im2 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr2].im;
+
+            /*compute corr4fop_tmp[y0,i4fop] (with y0 on global lattice)*/
+            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re = re1*re2 - im1*im2;
+            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im = re1*im2 + im1*re2;
+
+         }
+
+         /*per normalizzare al numero di vettori noise*/
+         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re /= nnoise*nnoise;
+         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im /= nnoise*nnoise;          
+
+      } /*end of loop over space time*/
+
+
+   } /*end of loop over 4fop*/
+
+   /*then there should be an allreduce  like*/ 
+   MPI_Allreduce(data_4fop.corr4fop_tmp,data_4fop.corr4fop,n4fop*file_head.tvals*2
+      ,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+  /*end ET:*/
+
    /*each process computes a part of the correlator and stores it inside data.corr_tmp, 
    with the following function the information coming from all the processes gets
    combined (summed, since MPI_SUM) into data.corr, that hence now stores the
    complete results of all the correlators*/
+   /*cancelET:
    MPI_Allreduce(data.corr_tmp,data.corr,nnoise*ncorr*file_head.tvals*2
       ,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
-   
+   */
+
    /** memory deallocation**/
 
    free(zeta); /*deallocation of memory used for zeta*/
@@ -2221,18 +2547,30 @@ static void correlators(void)
 by calling the correlators() function*/
 static void set_data(int nc)
 {
-   data.nc=nc; /*sets data.nc to be te index of the gauge configuration passed as input*/
+   /*cancelET:
+   data.nc=nc;*/ /*sets data.nc to be te index of the gauge configuration passed as input*/
+   data_4fop.nc=nc;
    correlators(); /*computes the correlator with the gauge configuration nc*/
 
    /*on process 0 prints to the .log file information regarding the correlator*/
    if (my_rank==0)
    {
-      printf("G(t) =  %.4e%+.4ei",data.corr[0].re,data.corr[0].im); /*prints the correlator at the first time,...*/
-      printf(",%.4e%+.4ei,...",data.corr[1].re,data.corr[1].im); /*...at the second time ...*/
-      printf(",%.4e%+.4ei",data.corr[file_head.tvals-1].re,
-                           data.corr[file_head.tvals-1].im); /*... and at the last time ...*/
+      /*cancelET:*/
+      /*printf("G(t) =  %.4e%+.4ei",data.corr[0].re,data.corr[0].im);*/ /*prints the correlator at the first time,...*/
+      /*printf(",%.4e%+.4ei,...",data.corr[1].re,data.corr[1].im); */ /*...at the second time ...*/
+      /*printf(",%.4e%+.4ei",data.corr[file_head.tvals-1].re,
+                           data.corr[file_head.tvals-1].im); */ /*... and at the last time ...*/
+      /*printf("\n");*/
+      /*fflush(flog);*/ /*the output (that is directed on the log file) is flushed*/
+
+      /*ET: analogous print but with correct array*/
+      printf("G(t) =  %.4e%+.4ei",data_4fop.corr4fop[0].re,data_4fop.corr4fop[0].im); /*prints the correlator at the first time,...*/
+      printf(",%.4e%+.4ei,...",data_4fop.corr4fop[1].re,data_4fop.corr4fop[1].im); /*...at the second time ...*/
+      printf(",%.4e%+.4ei",data_4fop.corr4fop[file_head.tvals-1].re,
+                           data_4fop.corr4fop[file_head.tvals-1].im); /*... and at the last time ...*/
       printf("\n");
       fflush(flog); /*the output (that is directed on the log file) is flushed*/
+      /*end ET:*/
    }
 }
 
@@ -2348,7 +2686,9 @@ int main(int argc,char *argv[])
    /** file and simulation parameters initialization **/
 
    read_infile(argc,argv); /*read input from command line and input file*/
-   alloc_data(); /*allocate memory for the data structure*/
+   /*cancelET:
+   alloc_data();*/ /*allocate memory for the data structure*/
+   alloc_data4fop();
    check_files(); /*check compatibility with .dat and .log files already written*/
    print_info(); /*write all the variables and parameters of the simulation to the .log file*/
    dfl=dfl_parms(); /*get the parameters of the deflation subspace from global structure*/
@@ -2412,7 +2752,9 @@ int main(int argc,char *argv[])
       set_data(nc); /*the correlator corresponding to the gauge configuration nc is computed and stored inside the structure data*/
       
       /*the computed correlators then gets stored*/
-      write_data(); /*writes on the .dat files the values of the correlators*/
+      /*cancelET:
+      write_data();*/ /*writes on the .dat files the values of the correlators*/
+      write_data_4fop();
 
       /*some more info are written in the rng file*/
       export_ranlux(nc,rng_file); /*the tag (nc) and the state of the random generator is written on the rng_file*/
