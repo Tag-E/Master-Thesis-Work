@@ -1,6 +1,6 @@
 [Run name]
-name         openQCD_run_name_4fop1
-output       mesons_run_name_4fop1      # optional
+name         openQCD_run_name_4fop_prove11
+output       mesons_run_name_4fop_prove11      # optional
 
 
 [Directories]                     # as in openQCD            

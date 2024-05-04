@@ -27,7 +27,7 @@ GCC=gcc
 
 # scheduling and optimization options
 
-CFLAGS = -std=c89 -pedantic -fstrict-aliasing -Wall -Wno-long-long -Wstrict-prototypes -Werror -O -mno-avx -Dx64 -DPM
+CFLAGS = -std=c89 -pedantic -fstrict-aliasing -Wall -Wno-long-long -Wstrict-prototypes -O -mno-avx -Dx64 -DPM -Werror
 
 # -Dx64
 # debugging flags (add to CFLAGS if needed)

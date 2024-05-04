@@ -1,0 +1,510 @@
+
+Computation of meson correlators
+--------------------------------
+
+cnfg   base name: openQCD_run_name_4fop_prove7
+output base name: mesons_run_name_4fop_prove7
+
+openQCD version: openQCD-1.2, meson version: mesons v1.2rc
+The machine is little endian
+Configurations are read in exported file format
+
+16x8x8x8 lattice, 8x8x8x8 local lattice
+2x1x1x1 process grid, 1x1x1x1 process block size
+SF boundary conditions on the quark fields
+
+Random number generator:
+level = 0, seed = 73099
+
+Measurements:
+nprop     = 2
+ncorr     = 3
+n4fop     = 2
+nnoise    = 100
+noisetype = U1
+csw       = 1.495100
+cF        = 1.000000
+
+eoflg     = 0
+Propagator 0:
+kappa  = 0.121951
+isp    = 0
+mu     = 0.000000
+
+Propagator 1:
+kappa  = 0.120000
+isp    = 1
+mu     = 0.000000
+
+Correlator 0:
+iprop  = 0 0
+type   = 5 5
+x0     = 8
+
+Correlator 1:
+iprop  = 0 0
+type   = 10 5
+x0     = 8
+
+Correlator 2:
+iprop  = 0 1
+type   = 1 1
+x0     = 6
+
+icorr = 0 1
+icorr = 0 2
+Solver 0:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 5
+nmx = 128
+res = 1.0e-12
+
+Solver 1:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 6
+nmx = 128
+res = 1.0e-12
+
+SAP block size:
+bs = 4 4 4 4
+
+Deflation subspace:
+bs = 4 4 4 4
+Ns = 20
+
+Deflation projection:
+nkv = 16
+nmx = 256
+res = 1.0e-02
+
+Deflation subspace generation:
+kappa = 0.120000
+mu = 0.01
+ninv = 10
+nmr = 4
+ncy = 4
+
+Configurations no 1 -> 2 in steps of 1
+
+Configuration no 1
+Deflation subspace generation: status = 4
+Inversions:
+   x0=0
+      noise vector 0
+      noise vector 1
+      noise vector 2
+      noise vector 3
+      noise vector 4
+      noise vector 5
+      noise vector 6
+      noise vector 7
+      noise vector 8
+      noise vector 9
+      noise vector 10
+      noise vector 11
+      noise vector 12
+      noise vector 13
+      noise vector 14
+      noise vector 15
+      noise vector 16
+      noise vector 17
+      noise vector 18
+      noise vector 19
+      noise vector 20
+      noise vector 21
+      noise vector 22
+      noise vector 23
+      noise vector 24
+      noise vector 25
+      noise vector 26
+      noise vector 27
+      noise vector 28
+      noise vector 29
+      noise vector 30
+      noise vector 31
+      noise vector 32
+      noise vector 33
+      noise vector 34
+      noise vector 35
+      noise vector 36
+      noise vector 37
+      noise vector 38
+      noise vector 39
+      noise vector 40
+      noise vector 41
+      noise vector 42
+      noise vector 43
+      noise vector 44
+      noise vector 45
+      noise vector 46
+      noise vector 47
+      noise vector 48
+      noise vector 49
+      noise vector 50
+      noise vector 51
+      noise vector 52
+      noise vector 53
+      noise vector 54
+      noise vector 55
+      noise vector 56
+      noise vector 57
+      noise vector 58
+      noise vector 59
+      noise vector 60
+      noise vector 61
+      noise vector 62
+      noise vector 63
+      noise vector 64
+      noise vector 65
+      noise vector 66
+      noise vector 67
+      noise vector 68
+      noise vector 69
+      noise vector 70
+      noise vector 71
+      noise vector 72
+      noise vector 73
+      noise vector 74
+      noise vector 75
+      noise vector 76
+      noise vector 77
+      noise vector 78
+      noise vector 79
+      noise vector 80
+      noise vector 81
+      noise vector 82
+      noise vector 83
+      noise vector 84
+      noise vector 85
+      noise vector 86
+      noise vector 87
+      noise vector 88
+      noise vector 89
+      noise vector 90
+      noise vector 91
+      noise vector 92
+      noise vector 93
+      noise vector 94
+      noise vector 95
+      noise vector 96
+      noise vector 97
+      noise vector 98
+      noise vector 99
+   x0=0
+      noise vector 0
+      noise vector 1
+      noise vector 2
+      noise vector 3
+      noise vector 4
+      noise vector 5
+      noise vector 6
+      noise vector 7
+      noise vector 8
+      noise vector 9
+      noise vector 10
+      noise vector 11
+      noise vector 12
+      noise vector 13
+      noise vector 14
+      noise vector 15
+      noise vector 16
+      noise vector 17
+      noise vector 18
+      noise vector 19
+      noise vector 20
+      noise vector 21
+      noise vector 22
+      noise vector 23
+      noise vector 24
+      noise vector 25
+      noise vector 26
+      noise vector 27
+      noise vector 28
+      noise vector 29
+      noise vector 30
+      noise vector 31
+      noise vector 32
+      noise vector 33
+      noise vector 34
+      noise vector 35
+      noise vector 36
+      noise vector 37
+      noise vector 38
+      noise vector 39
+      noise vector 40
+      noise vector 41
+      noise vector 42
+      noise vector 43
+      noise vector 44
+      noise vector 45
+      noise vector 46
+      noise vector 47
+      noise vector 48
+      noise vector 49
+      noise vector 50
+      noise vector 51
+      noise vector 52
+      noise vector 53
+      noise vector 54
+      noise vector 55
+      noise vector 56
+      noise vector 57
+      noise vector 58
+      noise vector 59
+      noise vector 60
+      noise vector 61
+      noise vector 62
+      noise vector 63
+      noise vector 64
+      noise vector 65
+      noise vector 66
+      noise vector 67
+      noise vector 68
+      noise vector 69
+      noise vector 70
+      noise vector 71
+      noise vector 72
+      noise vector 73
+      noise vector 74
+      noise vector 75
+      noise vector 76
+      noise vector 77
+      noise vector 78
+      noise vector 79
+      noise vector 80
+      noise vector 81
+      noise vector 82
+      noise vector 83
+      noise vector 84
+      noise vector 85
+      noise vector 86
+      noise vector 87
+      noise vector 88
+      noise vector 89
+      noise vector 90
+      noise vector 91
+      noise vector 92
+      noise vector 93
+      noise vector 94
+      noise vector 95
+      noise vector 96
+      noise vector 97
+      noise vector 98
+      noise vector 99
+G(t) =  1.1672e-313+0.0000e+00i,0.0000e+00+7.9545e-322i,...,0.0000e+00+0.0000e+00i
+Configuration no 1 fully processed in 2.50e+01 sec (average = 2.50e+01 sec)
+
+Configuration no 2
+Deflation subspace generation: status = 4
+Inversions:
+   x0=0
+      noise vector 0
+      noise vector 1
+      noise vector 2
+      noise vector 3
+      noise vector 4
+      noise vector 5
+      noise vector 6
+      noise vector 7
+      noise vector 8
+      noise vector 9
+      noise vector 10
+      noise vector 11
+      noise vector 12
+      noise vector 13
+      noise vector 14
+      noise vector 15
+      noise vector 16
+      noise vector 17
+      noise vector 18
+      noise vector 19
+      noise vector 20
+      noise vector 21
+      noise vector 22
+      noise vector 23
+      noise vector 24
+      noise vector 25
+      noise vector 26
+      noise vector 27
+      noise vector 28
+      noise vector 29
+      noise vector 30
+      noise vector 31
+      noise vector 32
+      noise vector 33
+      noise vector 34
+      noise vector 35
+      noise vector 36
+      noise vector 37
+      noise vector 38
+      noise vector 39
+      noise vector 40
+      noise vector 41
+      noise vector 42
+      noise vector 43
+      noise vector 44
+      noise vector 45
+      noise vector 46
+      noise vector 47
+      noise vector 48
+      noise vector 49
+      noise vector 50
+      noise vector 51
+      noise vector 52
+      noise vector 53
+      noise vector 54
+      noise vector 55
+      noise vector 56
+      noise vector 57
+      noise vector 58
+      noise vector 59
+      noise vector 60
+      noise vector 61
+      noise vector 62
+      noise vector 63
+      noise vector 64
+      noise vector 65
+      noise vector 66
+      noise vector 67
+      noise vector 68
+      noise vector 69
+      noise vector 70
+      noise vector 71
+      noise vector 72
+      noise vector 73
+      noise vector 74
+      noise vector 75
+      noise vector 76
+      noise vector 77
+      noise vector 78
+      noise vector 79
+      noise vector 80
+      noise vector 81
+      noise vector 82
+      noise vector 83
+      noise vector 84
+      noise vector 85
+      noise vector 86
+      noise vector 87
+      noise vector 88
+      noise vector 89
+      noise vector 90
+      noise vector 91
+      noise vector 92
+      noise vector 93
+      noise vector 94
+      noise vector 95
+      noise vector 96
+      noise vector 97
+      noise vector 98
+      noise vector 99
+   x0=0
+      noise vector 0
+      noise vector 1
+      noise vector 2
+      noise vector 3
+      noise vector 4
+      noise vector 5
+      noise vector 6
+      noise vector 7
+      noise vector 8
+      noise vector 9
+      noise vector 10
+      noise vector 11
+      noise vector 12
+      noise vector 13
+      noise vector 14
+      noise vector 15
+      noise vector 16
+      noise vector 17
+      noise vector 18
+      noise vector 19
+      noise vector 20
+      noise vector 21
+      noise vector 22
+      noise vector 23
+      noise vector 24
+      noise vector 25
+      noise vector 26
+      noise vector 27
+      noise vector 28
+      noise vector 29
+      noise vector 30
+      noise vector 31
+      noise vector 32
+      noise vector 33
+      noise vector 34
+      noise vector 35
+      noise vector 36
+      noise vector 37
+      noise vector 38
+      noise vector 39
+      noise vector 40
+      noise vector 41
+      noise vector 42
+      noise vector 43
+      noise vector 44
+      noise vector 45
+      noise vector 46
+      noise vector 47
+      noise vector 48
+      noise vector 49
+      noise vector 50
+      noise vector 51
+      noise vector 52
+      noise vector 53
+      noise vector 54
+      noise vector 55
+      noise vector 56
+      noise vector 57
+      noise vector 58
+      noise vector 59
+      noise vector 60
+      noise vector 61
+      noise vector 62
+      noise vector 63
+      noise vector 64
+      noise vector 65
+      noise vector 66
+      noise vector 67
+      noise vector 68
+      noise vector 69
+      noise vector 70
+      noise vector 71
+      noise vector 72
+      noise vector 73
+      noise vector 74
+      noise vector 75
+      noise vector 76
+      noise vector 77
+      noise vector 78
+      noise vector 79
+      noise vector 80
+      noise vector 81
+      noise vector 82
+      noise vector 83
+      noise vector 84
+      noise vector 85
+      noise vector 86
+      noise vector 87
+      noise vector 88
+      noise vector 89
+      noise vector 90
+      noise vector 91
+      noise vector 92
+      noise vector 93
+      noise vector 94
+      noise vector 95
+      noise vector 96
+      noise vector 97
+      noise vector 98
+      noise vector 99
+G(t) =  1.1672e-313+0.0000e+00i,0.0000e+00+7.9545e-322i,...,0.0000e+00+0.0000e+00i
+Configuration no 2 fully processed in 2.47e+01 sec (average = 2.49e+01 sec)
+

@@ -124,12 +124,14 @@ static struct
 complete values of all the correlators at all times, a related array corr_tmp used as temporary
 copy to store the partial values of the correlators computed by a single process, an index nc
 laballing the gauge configuration used to compute the correlator*/
+/*cancelET:*/
+/*
 static struct
-{
-   complex_dble *corr; /*complete value of the correlators*/
-   complex_dble *corr_tmp; /*partial value of the correlators computed by a single process*/
-   int nc; /*index of the gauge configuration the correlator is related to*/
-} data;
+{*/
+   /*complex_dble *corr;*/ /*complete value of the correlators*/
+   /*complex_dble *corr_tmp;*/ /*partial value of the correlators computed by a single process*/
+   /*int nc;*/ /*index of the gauge configuration the correlator is related to*/
+/*} data;*/
 
 
 /*ET: structure resembling data but with the information needed for the correlation functions
@@ -315,31 +317,32 @@ static void alloc_data4fop(void)
    data_4fop.corr_tmp_local=malloc(L1*L2*L3*L0*file_head.ncorr*sizeof(complex_dble)); /*correlators on local process*/
    
    /*check on correct memory allocation*/
-   error((data_4fop.corr4fop==NULL)||(data_4fop.corr4fop_tmp==NULL),1,"alloc_data4fop [4fop_tm_mesons.c]",
+   error((data_4fop.corr4fop==NULL)||(data_4fop.corr4fop_tmp==NULL)||(data_4fop.corr_tmp_local==NULL),1,"alloc_data4fop [4fop_tm_mesons.c]",
          "Unable to allocate data arrays");
 }
 
 
 /*function used to allocate the structure data*/
+/*cancelET:
 static void alloc_data(void)
 {
-
+*/
    /*the number of complex double needed is equal to the number of correlators
    times the number of noise vectors per configuration times the number of
    time intervals (such a quantity for data.corr and for the temporary counterpart
    data.corr_tmp)*/
 
    /*memory allocation*/
-   data.corr=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
+   /*data.corr=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
                                                           sizeof(complex_dble));
    data.corr_tmp=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
                                                       sizeof(complex_dble));
-   
+   */
    /*check on correct memory allocation*/
-   error((data.corr==NULL)||(data.corr_tmp==NULL),1,"alloc_data [mesons.c]",
+   /*error((data.corr==NULL)||(data.corr_tmp==NULL),1,"alloc_data [mesons.c]",
          "Unable to allocate data arrays");
 }
-
+*/
 
 /*function used to save the global file_head structure containing
 the correlators' information on the binary .dat file*/
@@ -567,7 +570,7 @@ static void write_data_4fop(void)
    int iw; /*counter used to write*/
    int nw; /*total number of elements to be written*/
    int chunk; /*size of each chunk that is written to file (??)*/
-   int i_4fop,i; /*indices used in the function*/
+   int i_4fop; /*indices used in the function*/
 
    /*the data is written only on process 0*/
    if (my_rank==0)
@@ -586,11 +589,11 @@ static void write_data_4fop(void)
       {
          bswap_double(file_head.tvals*file_head.n4fop*2,
                       data_4fop.corr4fop);
-         bswap_int(1,&(data.nc));
+         bswap_int(1,&(data_4fop.nc));
       }
 
       /*writing of nc*/
-      iw=fwrite(&(data.nc),sizeof(int),1,fdat);
+      iw=fwrite(&(data_4fop.nc),sizeof(int),1,fdat);
 
       /*then we write the data for each 4fop corr*/
 
@@ -623,6 +626,7 @@ static void write_data_4fop(void)
 
 /*function that writes on the .dat file the values of the correlators
 (and the index of the gauge configuration they correspond to)*/
+/*cancelET:
 static void write_data(void)
 {
    int iw;
@@ -670,6 +674,7 @@ static void write_data(void)
       fclose(fdat);
    }
 }
+*/
 
 
 /*ET: function used to read the data_4fop stucture from the .dat file,
@@ -680,13 +685,13 @@ static int read_data_4fop(void)
    int ir; /*index used for the reading count*/
    int nr; /*total readings to be done*/
    int chunk; /*size of the chunk written on the file*/
-   int i_4fop,i; /*indices used in the functin*/
+   int i_4fop; /*indices used in the function*/
    /*double zero; --> not needed here since i removed the isreal shortcut */
 
    /*first we read nc*/
 
    nr=1;
-   ir=fread(&(data.nc),sizeof(int),1,fdat);
+   ir=fread(&(data_4fop.nc),sizeof(int),1,fdat);
 
    /*then we read each 4 fop corr*/
 
@@ -713,8 +718,8 @@ static int read_data_4fop(void)
    /*if the machine is big endian swaps the bit of the read input (that is always little endian)*/
    if(endian==BIG_ENDIAN)
    {
-      bswap_double(nr,data.corr);
-      bswap_int(1,&(data.nc));
+      bswap_double(nr,data_4fop.corr4fop);
+      bswap_int(1,&(data_4fop.nc));
    }
    
    return 1;
@@ -726,6 +731,7 @@ static int read_data_4fop(void)
 /*function used to read the data stucture from the .dat file,
 returns 1 if something has been read, 0 if there is nothing to read
 (this function gets called by the check_old_Dat function)*/
+/*cancelET
 static int read_data(void)
 {
    int ir;
@@ -771,6 +777,7 @@ static int read_data(void)
    }
    return 1;
 }
+*/
 
 
 /*function reading directories' names and other inputs from input file*/
@@ -1191,6 +1198,7 @@ static void read_lat_parms(void)
 /* DP */
 
    file_head.ncorr = ncorr; /*number of correlators saved to global structure*/
+   file_head.n4fop = n4fop; /*ET: number of 4fop correlators saved to global structure*/
    file_head.nnoise = nnoise; /*number of noise vectors saved to global structure*/
    file_head.tvals = NPROC0*L0; /*tvals saved to global structure*/
    tvals = NPROC0*L0; /*tvals saved to global variable*/
@@ -1514,10 +1522,13 @@ static void check_old_dat(int fst,int lst,int stp)
    pc=0;
    ie=0x0;
 
-   while (read_data()==1)
+   /*cancelET:
+   while (read_data()==1)*/
+   while (read_data_4fop()==1)
    {
       pc=lc;
-      lc=data.nc;
+      /*lc=data.nc;*/ /*cancelET: replace data with data4fop*/
+      lc=data_4fop.nc;
       ic+=1;
 
       if (ic==1)
@@ -2280,6 +2291,9 @@ static void correlators(void)
    spinor_dble *eta,*xi,**zeta,**wsd;
    complex_dble tmp; /*temporary complex variable used to compute the value of the correlator*/
 
+   /*ET: temporary variables to compute the product between two complex doubles*/
+   double re1,re2,im1,im2;
+
    /** allocation of the spinor fields **/
 
    /*the spinor fields needed for the computation are here allocated,
@@ -2482,16 +2496,14 @@ static void correlators(void)
 
    
 
-   /*ET: temporary variables to compute the product between two complex doubles*/
-   double re1,re2,im1,im2;
 
    /*ET: here loop over 4 point func*/
    for(i4fop=0; i4fop < n4fop; i4fop++){
 
       /*for each function with 4fop I select the two correlators*/
 
-      corr1 = file_head.corr1[i4fop]; 
-      corr2 =  file_head.corr1[i4fop];
+      corr1 = file_head.corr1[i4fop];
+      corr2 =  file_head.corr2[i4fop];
 
      /*then loop over space time*/
 
@@ -2499,7 +2511,7 @@ static void correlators(void)
       {
          for(l=0;l<L1*L2*L3;l++)
          {
-            iy = ipt[l+y0*L1*L2*L3];
+            /*iy = ipt[l+y0*L1*L2*L3];*/
 
             /*to compute the product between complex variables*/
             re1 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr1].re;
@@ -2508,14 +2520,14 @@ static void correlators(void)
             im2 = data_4fop.corr_tmp_local[l+y0*L1*L2*L3 + L1*L2*L3*L0*corr2].im;
 
             /*compute corr4fop_tmp[y0,i4fop] (with y0 on global lattice)*/
-            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re = re1*re2 - im1*im2;
-            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im = re1*im2 + im1*re2;
+            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re += re1*re2 - im1*im2;
+            data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im += re1*im2 + im1*re2;
 
          }
 
          /*per normalizzare al numero di vettori noise*/
          data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re /= nnoise*nnoise;
-         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im /= nnoise*nnoise;          
+         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im /= nnoise*nnoise;     
 
       } /*end of loop over space time*/
 
