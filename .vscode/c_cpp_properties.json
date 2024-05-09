@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/mesons-master/**",
                 "${workspaceFolder}/openQCD-1.2/**",
-                "/usr/lib/x86_64-linux-gnu/openmpi/include"
+                "/usr/lib/x86_64-linux-gnu/openmpi/include",
+                "${workspaceFolder}/mesons-master/build/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

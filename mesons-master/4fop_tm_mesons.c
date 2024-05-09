@@ -169,7 +169,7 @@ static int my_rank,noexp,append,norng,endian;
 
 /*
    - first : index of the first configuration
-   - last : inde of the last configuration
+   - last : index of the last configuration
    - step : step used in the scanning of configurations
 */
 static int first,last,step;
@@ -2526,8 +2526,9 @@ static void correlators(void)
          }
 
          /*per normalizzare al numero di vettori noise*/
-         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re /= nnoise*nnoise;
-         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im /= nnoise*nnoise;     
+         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].re /= -nnoise*nnoise;
+         data_4fop.corr4fop_tmp[cpr[0]*L0+y0 + file_head.tvals*i4fop].im /= -nnoise*nnoise;
+         /*the minus is there cause there is two times in the correlation function (look at formulae)*/     
 
       } /*end of loop over space time*/
 
