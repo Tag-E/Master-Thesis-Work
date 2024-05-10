@@ -465,7 +465,7 @@ static void check_file_head(void)
       bswap_int(1,istd);
    ie=(istd[0]!=(stdint_t)(file_head.n4fop));
 
-   ir=fread(istd,sizeof(stdint_t),1,fdat);
+   ir+=fread(istd,sizeof(stdint_t),1,fdat); /*ET: ir modified to += from =*/
    if (endian==BIG_ENDIAN)
       bswap_int(1,istd);
    ie+=(istd[0]!=(stdint_t)(file_head.ncorr)); /*ET: ie modified to += from =*/
@@ -490,7 +490,7 @@ static void check_file_head(void)
    error_root(ie!=0,1,"check_file_head [mesons.c]",
               "Unexpected value of ncorr, nnoise, tvals or noisetype");
 
-   /*ET: added the reading on the details of th 4fop correlators*/
+   /*ET: added the reading on the details of the 4fop correlators*/
    for (i=0;i<file_head.n4fop;i++)
    {
       ir=fread(istd,sizeof(stdint_t),1,fdat);
@@ -498,7 +498,7 @@ static void check_file_head(void)
          bswap_int(1,istd);
       ie=(istd[0]!=(stdint_t)(file_head.corr1[i]));
 
-      ir=fread(istd,sizeof(stdint_t),1,fdat);
+      ir+=fread(istd,sizeof(stdint_t),1,fdat);
       if (endian==BIG_ENDIAN)
          bswap_int(1,istd);
       ie+=(istd[0]!=(stdint_t)(file_head.corr2[i])); 
@@ -2714,7 +2714,7 @@ int main(int argc,char *argv[])
    alloc_ws(nws); /*allocates a workspace of nws single-precision spinor fields*/
    alloc_wsd(nwsd); /*allocates a workspace of nwsd double-precision spinor fields*/
    alloc_wv(nwv); /*allocates a workspace of nws single-precision vector fields*/
-   alloc_wvd(nwvd); /*allocates a workspace of nwsd double-precision spinor fields*/
+   alloc_wvd(nwvd); /*allocates a workspace of nwsd double-precision vector fields*/
 
    /** loop over the gauge field configurations **/
 
