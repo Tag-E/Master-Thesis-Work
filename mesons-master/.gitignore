@@ -8,6 +8,8 @@ build/*.o
 build/*.d
 build/mesons
 build/tm_mesons
+build/4fop_tm_mesons
+build/deltaF2_4fop_3PointFunc
 build/salg_tests
 build/sflds_tests
 tests/*~

@@ -1569,8 +1569,8 @@ static void print_info(void)
          if (noisetype==U1_NOISE)
             printf("noisetype = U1\n");
          printf("csw       = %.6f\n",lat.csw);
-         printf("cF        = %.6f\n\n",lat.cF);
-	      printf("eoflg     = %i\n",tm.eoflg); /*print the twisted mass flag eoflag to the .log file*/
+         printf("cF        = %.6f\n",lat.cF);
+	      printf("eoflg     = %i\n\n",tm.eoflg); /*print the twisted mass flag eoflag to the .log file*/
 
          for (i=0; i<nprop; i++)
          {
@@ -2150,8 +2150,8 @@ static void correlators(void)
    /*zeta_A and xi_A are now set to be the remaining spinors already reserved in wsd*/
    for (inoise=0;inoise<nnoise;inoise++)
    {
-      zeta_A[inoise]=wsd[4+2*inoise];
-      xi_A[inoise]=wsd[4+2*inoise+1];
+      zeta_A[inoise]=wsd[3+2*inoise];
+      xi_A[inoise]=wsd[3+2*inoise+1];
    }
 
    /*why is the zeta_A and xi_A allocation needed (??)
@@ -2226,7 +2226,7 @@ static void correlators(void)
 
          /*then since what matters is GAMMA_1^dag gamma5 xi_A that is what we store inside the array xi_A*/
 
-         mul_GAMMAdag_g5(xi_A[inoise],type1[icorr],xi_A); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
+         mul_GAMMAdag_g5(xi_A[inoise],type1[icorr],xi_A[inoise]); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
 
       } /*end of noise loop, nnoise zeta_A and xi_A produced*/
 
@@ -2457,8 +2457,8 @@ int main(int argc,char *argv[])
             printf("Deflation subspace generation: status = %d\n",status[0]);
       }
 
-      /*the actual computation of the correlators is done here*/ /*!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-      /*set_data(nc);*/ /*the correlator corresponding to the gauge configuration nc is computed and stored inside the structure data*/
+      /*the actual computation of the correlators is done here*/ 
+      set_data(nc); /*the correlator corresponding to the gauge configuration nc is computed and stored inside the structure data*/
 
       /*the computed correlators then gets stored*/
       write_data(); /*writes on the .dat files the values of the correlators*/
