@@ -129,8 +129,10 @@ static struct
    - an index nc labelling the gauge configuration used to compute the correlator*/
 static struct
 {
-   complex_dble *corr; /*complete value of the correlators*/
-   complex_dble *corr_tmp; /*partial value of the correlators computed by a single process*/
+   complex_dble *corrConn; /*complete value of the connected part of the correlators*/
+   complex_dble *corrConn_tmp; /*partial value of the connected part of the correlators computed by a single process*/
+   complex_dble *corrDisc; /*complete value of the disconnected part of the correlators*/
+   complex_dble *corrDisc_tmp; /*partial value of the discconnected part of the correlators computed by a single process*/
    int nc; /*index of the gauge configuration the correlator is related to*/
 } data;
 
@@ -673,8 +675,8 @@ static void read_lat_parms(void)
    file_head.ncorr = ncorr; /*number of correlators saved to global structure*/
    file_head.nnoise = nnoise; /*number of noise vectors saved to global structure*/
    file_head.noisetype = noisetype; /*noisetype saved to global structure*/
-
    file_head.tvals = NPROC0*L0; /*tvals saved to global structure*/
+
    tvals = NPROC0*L0; /*tvals saved to global variable*/
    
    for(icorr=0; icorr<ncorr; icorr++) /*for each correlator the related parameters are saved in file_head*/
@@ -895,18 +897,19 @@ static void alloc_data(void)
 {
    /*to store all the values of the correlators the number of complex double needed is equal 
      to the number of correlators times the number of time intervals
-     (such a quantity is needed both for data.corr and for the temporary counterpart data.corr_tmp)
+     (such a quantity is needed both for data.corr and for the temporary counterpart data.corr_tmp,
+     and both for the connected and the disconnected counterpart)
    */
 
    /*memory allocation*/
-   data.corr=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
-                                                          sizeof(complex_dble));
-   data.corr_tmp=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*
-                                                      sizeof(complex_dble));
+   data.corrConn=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrConn_tmp=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrDisc=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrDisc_tmp=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
    
    /*check on correct memory allocation*/
-   error((data.corr==NULL)||(data.corr_tmp==NULL),1,"alloc_data [deltaF2_4fop_3PointFunc.c]",
-         "Unable to allocate data arrays");
+   error((data.corrConn==NULL)||(data.corrConn_tmp==NULL)||
+         (data.corrDisc==NULL)||(data.corrDisc_tmp==NULL),1,"alloc_data [deltaF2_4fop_3PointFunc.c]","Unable to allocate data arrays");
 }
 
 
@@ -933,9 +936,14 @@ static int read_data(void)
       nr+=chunk; /*count update*/
       
       /*reading*/
-      ir+=fread(&(data.corr[icorr*file_head.tvals]),
+      ir+=fread(&(data.corrConn[icorr*file_head.tvals]),
                     sizeof(double),chunk,fdat);
       
+      nr+=chunk; /*count update*/
+      
+      /*reading*/
+      ir+=fread(&(data.corrDisc[icorr*file_head.tvals]),
+                    sizeof(double),chunk,fdat);
    }
 
    /*if nothing has been read the function returns 0*/
@@ -949,7 +957,8 @@ static int read_data(void)
    /*if the machine is big endian swaps the bit of the read input (that is always little endian)*/
    if(endian==BIG_ENDIAN)
    {
-      bswap_double(nr,data.corr);
+      bswap_double(nr,data.corrConn);
+      bswap_double(nr,data.corrDisc);
       bswap_int(1,&(data.nc));
    }
 
@@ -983,8 +992,8 @@ static void write_data(void)
       /*swap of bit before writing if big endian*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,
-                      data.corr);
+         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrConn);
+         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
@@ -999,16 +1008,20 @@ static void write_data(void)
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corr[icorr*file_head.tvals*file_head.nnoise]),
-                       sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrConn[icorr*file_head.tvals]),sizeof(double),chunk,fdat);
+
+         nw+=chunk; /*update the writing count*/
+         
+         /*writing of the correlator*/
+         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals]),sizeof(double),chunk,fdat);
          
       }
 
       /*swap of bit after writing if big endian to restore initial situation*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,
-                      data.corr);
+         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrConn);
+         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
@@ -1693,7 +1706,7 @@ solver method chosen in the input file
 (function called by the main)*/
 static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
 {
-   int nsd; /*(??)*/
+   int nsd; /*number of double-precision spinor fields to be allocated*/
    solver_parms_t sp; /*local variable with the solver parameters*/
 
    (*nws)=0;
@@ -1704,7 +1717,7 @@ static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
    /*nws, nwsd, nwv, nwvd are initialized to 0*/
 
    sp=solver_parms(0); /*set sp to the global structure with the solver parameters*/
-   nsd=2+2; /*nsd set to maximum number of propagators +2 (??) */
+   nsd=2*file_head.nnoise+2+1; /*nsd set to 2 times the number of noise vectors +2 +1 (xiA,zetaA x nnoise + xiB,zetaB + a tmp spinor) */
 
    /*depending on the solver method nws, nwsd, nwv, nwvd get modified
    (they increase if they are smaller than some minimum)*/
@@ -1758,6 +1771,599 @@ static void check_endflag(int *iend)
    /*the endflag is then broadcasted to all other processes*/
    MPI_Bcast(iend,1,MPI_INT,0,MPI_COMM_WORLD);
 }
+
+
+/*** computation functions ***/
+
+/*function used to create a random spinor:
+the array eta is first set to 0 on the whole lattice, then at the timeslice x0 
+it gets filled with random doubles according to the random method specified (globally)
+(function called by the propagators function)*/
+static void random_spinor(spinor_dble *eta, int x0)
+{
+   
+   int y0; /* = x0 after a change of variable where the center is in the cartesian coordinate of the local process*/
+   int iy; /*index running on the time extent of the lattice*/
+   int ix; /*index of the point on the local lattice*/
+
+   set_sd2zero(VOLUME,eta); /*eta is set to 0 on the whole lattice volume*/
+
+   y0=x0-cpr[0]*L0;/*y0 is set to the distance between x0 and the center of the local process*/
+   /*(cpr are the coordinates of the local process)*/
+
+   /*if x0 lies inside the block of the current local process
+   then the random vector should be generated in this process*/
+
+   if ((y0>=0)&&(y0<L0)) /*i.e. if x0 inside the block of the current process ...*/
+   {
+
+      /*... then in the x0 timeslice eta is generated randomly*/
+
+      if (noisetype==Z2_NOISE) /*if  the random generation is of type Z2*/
+      {
+         for (iy=0;iy<(L1*L2*L3);iy++) /*loop over the timeslice*/
+         {
+            ix=ipt[iy+y0*L1*L2*L3]; /*index of the point on the local lattice*/
+            random_Z2_sd(1,eta+ix); /*random Z2 generation of the spinor entry (just 1) at position ix*/
+         }
+      }
+      else if (noisetype==GAUSS_NOISE)
+      {
+         for (iy=0;iy<(L1*L2*L3);iy++) /*loop over the timeslice*/
+         {
+            ix=ipt[iy+y0*L1*L2*L3]; /*index of the point on the local lattice*/
+            random_sd(1,eta+ix,1.0); /*random gaussian generation of the spinor entry (just 1) at position ix*/
+         }
+      }
+      else if (noisetype==U1_NOISE)
+      {
+         for (iy=0;iy<(L1*L2*L3);iy++) /*loop over the timeslice*/
+         {
+            ix=ipt[iy+y0*L1*L2*L3]; /*index of the point on the local lattice*/
+            random_U1_sd(1,eta+ix); /*random U1 generation of the spinor entry (just 1) at position ix*/
+         }
+      }
+
+      /*(the above random generations are done entry by entry,
+      they can't be done in one shot like random_sd(L1*L2*L3, eta)
+      because the entries are on a timeslice, so they are not contiguous)*/
+
+   }
+
+}
+
+
+/* out_spinor = gamma5 * GAMMA^dagger * eta
+function that constructs the source term of the Dirac equation from the random spinor eta according to
+what specified in the documentation (inverting the Dirac equation with this source zeta and xi can be found):
+   - eta        : is the random spinor passed as input (it is not modified) 
+   - out_spinor : it is set to be gamma5 * GAMMA^dagger * eta
+                  that according to the documentation is the source for the Dirac equation whose 
+                  inversion gives us zeta and xi, 
+   - type       : it is what speicifies GAMMA, and it should be either type_A or type_B specified in the
+                  input file (the product of gamma matrices is done according to the table 1 of the documentation)
+(function called by the propagators function)*/
+void mul_g5_GAMMAdag(spinor_dble *eta, int type, spinor_dble *out_spinor)
+{
+
+   /*
+   - assign_msd2sd : sets the second spinor to be equal to minus the first one
+   - assign_sd2sd : sets the second spinor to be equal to the first one
+   - mulgigj : multiplies the spinor by gamma_i gamma_j
+
+   VOLUME means that these operation are done on the whole lattice
+   */
+
+   switch (type)
+   {
+      case GAMMA0_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg0g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg1g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg2g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA3_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg3g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         break;
+      case GAMMA0GAMMA1_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg2g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA2_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg1g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA3_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg1g2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg0_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA2_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg0g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA3_TYPE:
+         assign_msd2sd(VOLUME,eta,out_spinor);
+         mulg0g2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg1_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2GAMMA3_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg0g1_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA3GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg3_dble(VOLUME,out_spinor);
+         break;
+      case ONE_TYPE:
+         assign_sd2sd(VOLUME,eta,out_spinor);
+         mulg5_dble(VOLUME,out_spinor);
+         break;
+      default:
+         error_root(1,1,"mul_g5_GAMMAdag [deltaF2_4fop_3PointFunc.c]",
+                 "Unknown or unsupported type");
+   }
+}
+
+
+/* out_spinor = (Dw + i mu gamma5)^(-1) * source_spinor  (??)
+function that inverts the Dirac equation and sets the output spinor to be like the xi of eq 6 in the documentatation:
+   - prop          : is the index of the quark whose Dirac operator gets inverted
+   - source_spinor : is the source for the Dirac equation that gets inverted
+   - out_spinor    : where the result is stored
+   - status        : where the status of the inversion gets stored
+(function called by the correlators function)*/
+static void solve_dirac(int prop, spinor_dble *source_spinor, spinor_dble *out_spinor,
+                        int *status)
+{
+   solver_parms_t sp; /*local structure with the solver parameters*/
+   sap_parms_t sap; /*structure related to the sap solver*/
+
+   sp=solver_parms(isps[prop]); /*sp assigned to global solver structure depending on solver id of the propagator*/
+   set_sw_parms(0.5/kappas[prop]-4.0); /*sets the bare quark mass to that of the propagator with index prop*/
+
+   /*depending on the chosen solver a different method is used*/
+
+   if (sp.solver==CGNE) /*if the solver is CGNE*/
+   {
+      mulg5_dble(VOLUME,source_spinor); /*multiplies source_spinor by gamma5*/
+
+      tmcg(sp.nmx,sp.res,mus[prop],source_spinor,source_spinor,status); /*source_spinor is set to be the solution of the Wilson-Dirac equation (with a twisted mass term)*/
+
+      /*on process 0 writes on the log file the status of the solver*/
+      if (my_rank==0)
+         printf("%i\n",status[0]);
+      
+      /*raises an error if the solver was unsuccesful (i.e. status<0)*/
+      error_root(status[0]<0,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+                 "CGNE solver failed (status = %d)",status[0]);
+
+      Dw_dble(-mus[prop],source_spinor,out_spinor); /*out_spinor = (Dw + i (-mu) gamma5) source_spinor*/
+
+      /*after the above function out_spinor becomes
+      out_spinor = (Dw^dagger - i mu gamma5)^(-1) gamma5 * (the original source_spinor) */
+
+      mulg5_dble(VOLUME,out_spinor); /*out_spinor gets multiplied by gamma5*/
+
+      /*after this last function out_spinor in now equal to the xi of equation 6
+      of the documentation -> with maybe the twisted mass as extra (??)*/
+
+   }
+   else if (sp.solver==SAP_GCR) /*if the solver is SAP_GCR*/
+   {
+
+      /*initialization of sap solver*/
+      sap=sap_parms(); /*sap set to the global structure with the parameters of the SAP preconditioner*/
+      set_sap_parms(sap.bs,sp.isolv,sp.nmr,sp.ncy); /*set the parameters of the sap preconditioner*/
+
+      /*out_spinor is set as the solution of the dirac equation with source source_spinor (using sap_gcr solver)*/
+      sap_gcr(sp.nkv,sp.nmx,sp.res,mus[prop],source_spinor,out_spinor,status);
+
+      /*on process 0 writes on the log file the status of the solver*/
+      if (my_rank==0)
+         printf("%i\n",status[0]);
+      
+      /*raises an error if the solver was unsuccesful (i.e. status<0)*/
+      error_root(status[0]<0,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+                 "SAP_GCR solver failed (status = %d)",status[0]);
+      
+   }
+   else if (sp.solver==DFL_SAP_GCR) /*if the solver is DFL_SAP_GCR*/
+   {
+      /*initialization of sap solver*/
+      sap=sap_parms(); /*sap set to the global structure with the parameters of the SAP preconditioner*/
+      set_sap_parms(sap.bs,sp.isolv,sp.nmr,sp.ncy); /*set the parameters of the sap preconditioner*/
+
+      /*out_spinor is set as the solution of the dirac equation with source source_spinor (using dfl_sap_gcr solver)*/
+      dfl_sap_gcr2(sp.nkv,sp.nmx,sp.res,mus[prop],source_spinor,out_spinor,status);
+
+      /*on process 0 writes on the log file the status of the solver*/
+      if (my_rank==0)
+         printf("%i %i\n",status[0],status[1]);
+      
+      /*raises an error if the solver was unsuccesful (i.e. status<0)*/
+      error_root((status[0]<0)||(status[1]<0),1,
+                 "solve_dirac [deltaF2_4fop_3PointFunc.c]","DFL_SAP_GCR solver failed "
+                 "(status = %d,%d)",status[0],status[1]);
+      
+   }
+   else /*if the specified solver is unknown raises an error*/
+      error_root(1,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+                 "Unknown or unsupported solver");
+}
+
+
+/* out_spinor = GAMMA^dagger *gamma5 * xi
+function that constructs the product that appears inside the correlator according to
+what specified in the documentation:
+   - xi         : is the xi of the documentation (either xi_A or xi_B)
+   - out_spinor : it is set to be GAMMA^dagger *gamma5 * xi
+                  that according to the documentation should later be multiplied to zeta, 
+   - type       : it is what speicifies GAMMA, and it should be either type_1 or type_2 specified in the
+                  input file (the product of gamma matrices is done according to the table 1 of the documentation)
+(function called by the propagators function)*/
+void mul_GAMMAdag_g5(spinor_dble *xi,int type,spinor_dble *out_spinor)
+{
+   /*
+   - assign_msd2sd : sets the second spinor to be equal to minus the first one
+   - assign_sd2sd : sets the first spinor to be equal to the first one
+   - mulgigj : multiplies the spinor by gamma_i gamma_j
+
+   VOLUME means that these operation are done on the whole lattice
+   */
+
+   switch (type)
+   {
+      case GAMMA0_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg0g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg1g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg2g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA3_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg3g5_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA5_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         break;
+      case GAMMA0GAMMA1_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg2g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA2_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg1g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA3_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg1g2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA0GAMMA5_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg0_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA2_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg0g3_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA3_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg0g2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA1GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg1_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2GAMMA3_TYPE:
+         assign_msd2sd(VOLUME,xi,out_spinor);
+         mulg0g1_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA2GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg2_dble(VOLUME,out_spinor);
+         break;
+      case GAMMA3GAMMA5_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg3_dble(VOLUME,out_spinor);
+         break;
+      case ONE_TYPE:
+         assign_sd2sd(VOLUME,xi,out_spinor);
+         mulg5_dble(VOLUME,out_spinor);
+         break;
+      default:
+         error_root(1,1,"mul_GAMMAdag_g5 [deltaF2_4fop_3PointFunc.c]",
+                 "Unknown or unsupported type");
+   }
+}
+
+
+/*core function used to compute the correlator once all the input
+variable have been specified in the corresponding global structures
+(function called by the set_data function)*/
+static void correlators(void)
+{
+
+   /** declaration of local variables **/
+
+   int icorr; /*index running over the correlators to be computed*/
+   int inoise; /*index running over the noise vector to be generated*/
+
+   int stat[4]; /*status array used in the Dirac inversion*/
+
+   int y0; /*index running on the local time extent (from 0 to L0)*/
+   int l; /*index running on the local space extent (from 0 to L1*L2*L3) (and also used to fill the correlators)*/
+
+   int iy; /*index on the (global) lattice obtained from the cartesian coordinates of the  (local) point y*/
+
+   spinor_dble **wsd; /*workspace of double-precision spinor fields */
+   spinor_dble **zeta_A; /*array with nnoise different zeta_A, as in the documentation*/
+   spinor_dble **xi_A; /*array with nnoise different xi_A ,as in the documentation*/
+   spinor_dble *zeta_B; /*zeta_B as in the documentation*/
+   spinor_dble *xi_B; /*xi_B as in the documentation*/
+   spinor_dble *source_spinor; /*spinor used as source for the Dirac equation, inverting it zeta and xi can be found*/
+
+   complex_dble tmp1, tmp2; /*temporary complex variables used to compute the values of the correlators*/
+
+   /** allocation of the spinor fields **/
+
+   /*the spinor fields needed for the computation are here allocated,
+   then the correct memory allocation is checked*/
+
+   wsd=reserve_wsd(2*nnoise+2+1); /*a workspace with 2xnnoise+2+2 spinor (double) fields is allocated*/
+
+   zeta_B=wsd[0]; /*the first array (field) in wsd is assigned to zeta_B*/
+   xi_B=wsd[1]; /*the second array (field) in wsd is assigned to xi_B*/
+
+   source_spinor=wsd[2]; /*the third array (field) in wsd is assigned to source_spinor*/
+
+   zeta_A=malloc(nnoise*sizeof(spinor_dble*)); /*allocation of nnoise spinors for zeta_A (why needed ?? )*/
+   xi_A=malloc(nnoise*sizeof(spinor_dble*)); /*allocation of nnoise spinors for xi_A (why needed ?? )*/
+   error((zeta_A==NULL)||(xi_A==NULL),1,"correlators [deltaF2_4fop_3PointFunc.c]","Out of memory"); /*check on successful allocation*/
+
+   /*zeta_A and xi_A are now set to be the remaining spinors already reserved in wsd*/
+   for (inoise=0;inoise<nnoise;inoise++)
+   {
+      zeta_A[inoise]=wsd[4+2*inoise];
+      xi_A[inoise]=wsd[4+2*inoise+1];
+   }
+
+   /*why is the zeta_A and xi_A allocation needed (??)
+   could
+
+   zeta_A = wsd[2]
+   xi_A = wsd[2+nnoise]
+   
+   do the trick ??
+   */
+
+   /** initialization of the correlators (tmp counterpars used by local processes) **/
+
+   for (l=0;l<ncorr*tvals;l++)
+   {
+      data.corrConn_tmp[l].re=0.0;
+      data.corrConn_tmp[l].im=0.0;
+      data.corrDisc_tmp[l].re=0.0;
+      data.corrDisc_tmp[l].im=0.0;
+   }
+
+   /** loop over the correlators to be computed **/
+
+   for (icorr=0;icorr<ncorr;icorr++) /*icorr ranges from 0 to the number of correlators to be computed*/
+   {
+
+      /*there will be a print on the log file prior to every Dirac inversion*/
+
+      /*informative print on process 0 ù*/
+      if (my_rank==0)
+      {
+         printf("Inversions for xi_A and zeta_A :\n");
+         printf("   icorr=%i , x0=%i\n",icorr,x0s[icorr]); /*the value of the x0 being used is printed on the .log file*/
+      }
+
+      /** loop over the noise vectors to generate nnoise zeta_A and xi_A **/
+
+      for (inoise=0;inoise<nnoise;inoise++) /*inoise ranges from 0 to the number of noise vectors*/
+      {
+
+         /*informative print on process 0*/
+         if (my_rank==0)
+            printf("      noise vector %i\n",inoise); /*the index of the noise vector being generated is written on the .log file*/
+
+         /*generation of the random source:
+         the eta_A of the documentation is generated: first it set to 0 on the whole space time volume,
+         then at the timeslice specified in the input file (that is at x0[icorr]) eta is filled with
+         random complex numbers according to the chosen random method (U1, Z2 or GAUSS);
+         the eta_A of the documentation is here stored inside source_spinor*/
+
+         random_spinor(source_spinor,x0s[icorr]); /*source_spinor = eta_A (it gets filled at the timeslice x0 with random numbers)*/
+
+         /*computation of zeta_A : using eta_A as source we invert the Dirac equation with he right propagator
+         (the one related to the first quark appearing in the correlation function)*/
+
+         /*informative print on process 0*/
+            if (my_rank==0)
+               printf("         type=%i, prop=%i, status:",ONE_TYPE, props1[icorr]); /*type and index of prop printed on .log*/
+
+         solve_dirac(props1[icorr],source_spinor,zeta_A[inoise],stat); /* zeta_A = (D_2 +i mu_2 gamma5)^-1 source_spinor */
+
+         /*analogously we now compute xi_A : first we compute gamma5 GAMMA_A^dag eta_A, then we invert the
+         Dirac equation related to the second quark appearing in the correlation function*/
+
+         mul_g5_GAMMAdag(source_spinor,typeA[icorr],source_spinor); /* source_spinor =  gamma5 GAMMA_A^dag eta_A*/
+
+         /*informative print on process 0*/
+            if (my_rank==0)
+               printf("         type=%i, prop=%i, status:",typeA[icorr], props2[icorr]); /*type and index of prop printed on .log*/
+
+         solve_dirac(props2[icorr], source_spinor, xi_A[inoise],stat); /*xi_A = (D_1 +i mu_1 gamma5)^-1 source_spinor */
+
+         /*then since what matters is GAMMA_1^dag gamma5 xi_A that is what we store inside the array xi_A*/
+
+         mul_GAMMAdag_g5(xi_A[inoise],type1[icorr],xi_A); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
+
+      } /*end of noise loop, nnoise zeta_A and xi_A produced*/
+
+
+      /*now that we have nnoise zeta_A and nnoise xi_A we loop again over the noise vector, each time we compute
+      zeta_B and xi_B and then we compute the connected and disconnected part of the correlators*/
+
+      /*informative print on process 0*/
+      if (my_rank==0)
+      {
+         printf("Inversions for xi_B and zeta_B :\n");
+         printf("   icorr=%i , z0=%i\n",icorr,z0s[icorr]); /*the value of the z0 being used is printed on the .log file*/
+      }
+
+      for (inoise=0;inoise<nnoise;inoise++) /*inoise ranges from 0 to the number of noise vectors*/
+      {
+
+         /*informative print on process 0*/
+         if (my_rank==0)
+            printf("      noise vector %i\n",inoise); /*the index of the noise vector being generated is written on the .log file*/
+
+         /*following the same procedure as before we now compute zeta_B and xi_B*/
+
+         random_spinor(source_spinor,z0s[icorr]); /*source_spinor = eta_B(it gets filled at the timeslice z0 with random numbers)*/
+
+         /*informative print on process 0*/
+         if (my_rank==0)
+            printf("         type=%i, prop=%i, status:",ONE_TYPE, props3[icorr]); /*type and index of prop printed on .log*/
+
+         solve_dirac(props3[icorr],source_spinor,zeta_B,stat); /* zeta_B = (D_4 +i mu_4 gamma5)^-1 source_spinor */
+
+         mul_g5_GAMMAdag(source_spinor,typeB[icorr],source_spinor); /* source_spinor =  gamma5 GAMMA_B^dag eta_B*/
+
+         /*informative print on process 0*/
+         if (my_rank==0)
+            printf("         type=%i, prop=%i, status:",typeB[icorr], props4[icorr]); /*type and index of prop printed on .log*/
+
+         solve_dirac(props4[icorr], source_spinor, xi_B,stat); /*xi_B = (D_3 +i mu_3 gamma5)^-1 source_spinor */
+
+         mul_GAMMAdag_g5(xi_B,type2[icorr],xi_B); /*xi_B set to be GAMMA_2^dag gamma5 xi_B*/
+
+         /*loop over the space time to compute the correlators*/
+
+         for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+         {
+            /*code optimization that can be made here:
+               int temp_index = y0*L1*L2*L3;
+               int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
+            */
+            
+            for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+            {
+               iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
+
+               /** Computation of Disconnected Part **/
+
+               /*first we compute in the given space-time point the two pieces appearing in the disconnected correlator*/
+               tmp1 = spinor_prod_dble(1,0,xi_A[inoise]+iy,zeta_A[inoise]+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_A*/
+               tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_B*/
+
+               /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
+               data.corrDisc_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+               data.corrDisc_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+
+               /** Computation of Connected Part**/
+
+               /*first we compute in the given space-time point the two pieces appearing in the connected correlator*/
+               tmp1 = spinor_prod_dble(1,0,xi_A[inoise]+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_B*/
+               tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_A[inoise]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
+
+               /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
+               data.corrConn_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+               data.corrConn_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+
+            } /*end space loop*/
+
+         } /*end y0 loop*/
+
+      } /*end of noise loop, sum of correlators computed*/
+
+      /** normalization of the correlators to the number of noise vectors used **/
+
+      for (l=0;l<ncorr*tvals;l++)
+      {
+         data.corrConn_tmp[l].re /= nnoise*nnoise;
+         data.corrConn_tmp[l].im /= nnoise*nnoise;
+         data.corrDisc_tmp[l].re /= nnoise*nnoise;
+         data.corrDisc_tmp[l].im /= nnoise*nnoise;
+      }
+
+   } /*end of loop over the correlators*/
+
+
+   /*each process computes a part of the correlator and stores it inside data.corr_tmp, 
+   with the following function the information coming from all the processes gets
+   combined (summed, since MPI_SUM) into data.corr, that hence now stores the
+   complete results of all the correlators*/
+
+   MPI_Allreduce(data.corrConn_tmp,data.corrConn,ncorr*file_head.tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,ncorr*file_head.tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+
+   /** memory deallocation**/
+
+   free(zeta_A); /*deallocation of memory used for zeta_A*/
+   free(xi_A); /*deallocation of memory used for xi_A*/
+   release_wsd(); /*release of the workspace allocated for all the spinors*/
+
+}
+
+
+/*computes the correlator related to the gauge configuration with index nc
+by calling the correlators() function
+(function called by the main)*/
+static void set_data(int nc)
+{
+
+   data.nc=nc; /*sets data.nc to be te index of the gauge configuration passed as input*/
+   correlators(); /*computes the correlator with the gauge configuration nc*/
+
+   /*on process 0 prints to the .log file information regarding the correlator*/
+   if (my_rank==0)
+   {
+      printf("G_conn(t) =  %.4e%+.4ei",data.corrConn[0].re,data.corrConn[0].im); /*prints the correlator at the first time,...*/
+      printf(",%.4e%+.4ei,...",data.corrConn[1].re,data.corrConn[1].im); /*...at the second time ...*/
+      printf(",%.4e%+.4ei",data.corrConn[file_head.tvals-1].re,
+                           data.corrConn[file_head.tvals-1].im); /*... and at the last time ...*/
+      printf("\n");
+      printf("G_disc(t) =  %.4e%+.4ei",data.corrDisc[0].re,data.corrDisc[0].im); /*prints the correlator at the first time,...*/
+      printf(",%.4e%+.4ei,...",data.corrDisc[1].re,data.corrDisc[1].im); /*...at the second time ...*/
+      printf(",%.4e%+.4ei",data.corrDisc[file_head.tvals-1].re,
+                           data.corrDisc[file_head.tvals-1].im); /*... and at the last time ...*/
+      printf("\n");
+      fflush(flog); /*the output (that is directed on the log file) is flushed*/
+   }
+
+}
+
 
 
 /*******************************************************************************/

@@ -2092,7 +2092,7 @@ void make_source(spinor_dble *eta, int type, spinor_dble *xi)
 
    /*
    - assign_msd2sd : sets the second spinor to be equal to minus the first one
-   - assign_sd2sd : sets the first spinor to be equal to the first one
+   - assign_sd2sd : sets the second spinor to be equal to the first one
    - mulgigj : multiplies the spinor by gamma_i gamma_j
 
    VOLUME means that these operation are done on the whole lattice
