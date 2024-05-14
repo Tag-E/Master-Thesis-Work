@@ -1534,7 +1534,7 @@ static void print_info(void)
          if (append)
             printf("\n");
          else
-            printf("SF boundary conditions on the quark fields\n\n"); /*(??)*/
+            printf("Open boundary conditions on the quark fields\n\n"); 
       }
       
       
@@ -1828,6 +1828,12 @@ static void random_spinor(spinor_dble *eta, int x0)
       they can't be done in one shot like random_sd(L1*L2*L3, eta)
       because the entries are on a timeslice, so they are not contiguous)*/
 
+      /*add another if with:
+      cpr[1]=cpr[2]=cpr[3]=0
+      iy = 0
+      y0 lo stesso
+      poi inizializzaione secondo indici di dirac*/
+
    }
 
 }
@@ -2039,19 +2045,19 @@ void mul_GAMMAdag_g5(spinor_dble *xi,int type,spinor_dble *out_spinor)
          mulg0g5_dble(VOLUME,out_spinor);
          break;
       case GAMMA1_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          mulg1g5_dble(VOLUME,out_spinor);
          break;
       case GAMMA2_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          mulg2g5_dble(VOLUME,out_spinor);
          break;
       case GAMMA3_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          mulg3g5_dble(VOLUME,out_spinor);
          break;
       case GAMMA5_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          break;
       case GAMMA0GAMMA1_TYPE:
          assign_sd2sd(VOLUME,xi,out_spinor);
@@ -2070,27 +2076,27 @@ void mul_GAMMAdag_g5(spinor_dble *xi,int type,spinor_dble *out_spinor)
          mulg0_dble(VOLUME,out_spinor);
          break;
       case GAMMA1GAMMA2_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          mulg0g3_dble(VOLUME,out_spinor);
          break;
       case GAMMA1GAMMA3_TYPE:
-         assign_sd2sd(VOLUME,xi,out_spinor);
+         assign_msd2sd(VOLUME,xi,out_spinor);
          mulg0g2_dble(VOLUME,out_spinor);
          break;
       case GAMMA1GAMMA5_TYPE:
-         assign_sd2sd(VOLUME,xi,out_spinor);
+         assign_msd2sd(VOLUME,xi,out_spinor);
          mulg1_dble(VOLUME,out_spinor);
          break;
       case GAMMA2GAMMA3_TYPE:
-         assign_msd2sd(VOLUME,xi,out_spinor);
+         assign_sd2sd(VOLUME,xi,out_spinor);
          mulg0g1_dble(VOLUME,out_spinor);
          break;
       case GAMMA2GAMMA5_TYPE:
-         assign_sd2sd(VOLUME,xi,out_spinor);
+         assign_msd2sd(VOLUME,xi,out_spinor);
          mulg2_dble(VOLUME,out_spinor);
          break;
       case GAMMA3GAMMA5_TYPE:
-         assign_sd2sd(VOLUME,xi,out_spinor);
+         assign_msd2sd(VOLUME,xi,out_spinor);
          mulg3_dble(VOLUME,out_spinor);
          break;
       case ONE_TYPE:
@@ -2333,6 +2339,8 @@ static void correlators(void)
    free(zeta_A); /*deallocation of memory used for zeta_A*/
    free(xi_A); /*deallocation of memory used for xi_A*/
    release_wsd(); /*release of the workspace allocated for all the spinors*/
+
+   /*can I add intermediate memory deallocation ??*/
 
 }
 
