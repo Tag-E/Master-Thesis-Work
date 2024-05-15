@@ -896,16 +896,16 @@ static void read_infile(int argc,char *argv[])
 static void alloc_data(void)
 {
    /*to store all the values of the correlators the number of complex double needed is equal 
-     to the number of correlators times the number of time intervals
+     to the number of correlators times the number of time intervals time the number of noise vectors squared
      (such a quantity is needed both for data.corr and for the temporary counterpart data.corr_tmp,
      and both for the connected and the disconnected counterpart)
    */
 
    /*memory allocation*/
-   data.corrConn=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrConn_tmp=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrDisc=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrDisc_tmp=malloc(file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrConn=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrConn_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrDisc=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrDisc_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
    
    /*check on correct memory allocation*/
    error((data.corrConn==NULL)||(data.corrConn_tmp==NULL)||
@@ -932,17 +932,17 @@ static int read_data(void)
 
    for (icorr=0;icorr<file_head.ncorr;icorr++)
    {
-      chunk=file_head.tvals*2; /*size of the chunk to be read */
+      chunk=file_head.nnoise*file_head.nnoise*file_head.tvals*2; /*size of the chunk to be read */
       nr+=chunk; /*count update*/
       
       /*reading*/
-      ir+=fread(&(data.corrConn[icorr*file_head.tvals]),
+      ir+=fread(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),
                     sizeof(double),chunk,fdat);
       
       nr+=chunk; /*count update*/
       
       /*reading*/
-      ir+=fread(&(data.corrDisc[icorr*file_head.tvals]),
+      ir+=fread(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),
                     sizeof(double),chunk,fdat);
    }
 
@@ -992,8 +992,8 @@ static void write_data(void)
       /*swap of bit before writing if big endian*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrConn);
-         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrConn);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
@@ -1004,24 +1004,24 @@ static void write_data(void)
 
       for (icorr=0;icorr<file_head.ncorr;icorr++)
       {
-         chunk=file_head.tvals*2; /*size of the chunk to write*/
+         chunk=file_head.nnoise*file_head.nnoise*file_head.tvals*2; /*size of the chunk to write*/
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corrConn[icorr*file_head.tvals]),sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),sizeof(double),chunk,fdat);
 
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals]),sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),sizeof(double),chunk,fdat);
          
       }
 
       /*swap of bit after writing if big endian to restore initial situation*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrConn);
-         bswap_double(file_head.tvals*file_head.ncorr*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrConn);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
@@ -2119,7 +2119,7 @@ static void correlators(void)
    /** declaration of local variables **/
 
    int icorr; /*index running over the correlators to be computed*/
-   int inoise; /*index running over the noise vector to be generated*/
+   int inoise_A, inoise_B; /*indeces running over the noise vectors to be generated*/
 
    int stat[4]; /*status array used in the Dirac inversion*/
 
@@ -2154,10 +2154,10 @@ static void correlators(void)
    error((zeta_A==NULL)||(xi_A==NULL),1,"correlators [deltaF2_4fop_3PointFunc.c]","Out of memory"); /*check on successful allocation*/
 
    /*zeta_A and xi_A are now set to be the remaining spinors already reserved in wsd*/
-   for (inoise=0;inoise<nnoise;inoise++)
+   for (inoise_A=0;inoise_A<nnoise;inoise_A++)
    {
-      zeta_A[inoise]=wsd[3+2*inoise];
-      xi_A[inoise]=wsd[3+2*inoise+1];
+      zeta_A[inoise_A]=wsd[3+2*inoise_A];
+      xi_A[inoise_A]=wsd[3+2*inoise_A+1];
    }
 
    /*why is the zeta_A and xi_A allocation needed (??)
@@ -2171,7 +2171,7 @@ static void correlators(void)
 
    /** initialization of the correlators (tmp counterpars used by local processes) **/
 
-   for (l=0;l<ncorr*tvals;l++)
+   for (l=0;l<nnoise*nnoise*ncorr*tvals;l++)
    {
       data.corrConn_tmp[l].re=0.0;
       data.corrConn_tmp[l].im=0.0;
@@ -2186,7 +2186,7 @@ static void correlators(void)
 
       /*there will be a print on the log file prior to every Dirac inversion*/
 
-      /*informative print on process 0 ù*/
+      /*informative print on process 0*/
       if (my_rank==0)
       {
          printf("Inversions for xi_A and zeta_A :\n");
@@ -2195,12 +2195,12 @@ static void correlators(void)
 
       /** loop over the noise vectors to generate nnoise zeta_A and xi_A **/
 
-      for (inoise=0;inoise<nnoise;inoise++) /*inoise ranges from 0 to the number of noise vectors*/
+      for (inoise_A=0;inoise_A<nnoise;inoise_A++) /*inoise_A ranges from 0 to the number of noise vectors*/
       {
 
          /*informative print on process 0*/
          if (my_rank==0)
-            printf("      noise vector %i\n",inoise); /*the index of the noise vector being generated is written on the .log file*/
+            printf("      noise vector A %i\n",inoise_A); /*the index of the noise vector being generated is written on the .log file*/
 
          /*generation of the random source:
          the eta_A of the documentation is generated: first it set to 0 on the whole space time volume,
@@ -2217,7 +2217,7 @@ static void correlators(void)
             if (my_rank==0)
                printf("         type=%i, prop=%i, status:",ONE_TYPE, props1[icorr]); /*type and index of prop printed on .log*/
 
-         solve_dirac(props1[icorr],source_spinor,zeta_A[inoise],stat); /* zeta_A = (D_2 +i mu_2 gamma5)^-1 source_spinor */
+         solve_dirac(props1[icorr],source_spinor,zeta_A[inoise_A],stat); /* zeta_A = (D_2 +i mu_2 gamma5)^-1 source_spinor */
 
          /*analogously we now compute xi_A : first we compute gamma5 GAMMA_A^dag eta_A, then we invert the
          Dirac equation related to the second quark appearing in the correlation function*/
@@ -2228,11 +2228,11 @@ static void correlators(void)
             if (my_rank==0)
                printf("         type=%i, prop=%i, status:",typeA[icorr], props2[icorr]); /*type and index of prop printed on .log*/
 
-         solve_dirac(props2[icorr], source_spinor, xi_A[inoise],stat); /*xi_A = (D_1 +i mu_1 gamma5)^-1 source_spinor */
+         solve_dirac(props2[icorr], source_spinor, xi_A[inoise_A],stat); /*xi_A = (D_1 +i mu_1 gamma5)^-1 source_spinor */
 
          /*then since what matters is GAMMA_1^dag gamma5 xi_A that is what we store inside the array xi_A*/
 
-         mul_GAMMAdag_g5(xi_A[inoise],type1[icorr],xi_A[inoise]); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
+         mul_GAMMAdag_g5(xi_A[inoise_A],type1[icorr],xi_A[inoise_A]); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
 
       } /*end of noise loop, nnoise zeta_A and xi_A produced*/
 
@@ -2247,12 +2247,12 @@ static void correlators(void)
          printf("   icorr=%i , z0=%i\n",icorr,z0s[icorr]); /*the value of the z0 being used is printed on the .log file*/
       }
 
-      for (inoise=0;inoise<nnoise;inoise++) /*inoise ranges from 0 to the number of noise vectors*/
+      for (inoise_B=0;inoise_B<nnoise;inoise_B++) /*inoise ranges from 0 to the number of noise vectors*/
       {
 
          /*informative print on process 0*/
          if (my_rank==0)
-            printf("      noise vector %i\n",inoise); /*the index of the noise vector being generated is written on the .log file*/
+            printf("      noise vector B %i\n",inoise_B); /*the index of the noise vector being generated is written on the .log file*/
 
          /*following the same procedure as before we now compute zeta_B and xi_B*/
 
@@ -2274,48 +2274,61 @@ static void correlators(void)
 
          mul_GAMMAdag_g5(xi_B,type2[icorr],xi_B); /*xi_B set to be GAMMA_2^dag gamma5 xi_B*/
 
-         /*loop over the space time to compute the correlators*/
+         /*now that we have xi_B and zeta_B we loop over all the xi_A and zeta_A already computed and then
+         compute nnoise x nnoise correlators given by all the combination of xi_A,zeta_A and xi_B,zeta_B*/
 
-         for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+         for (inoise_A=0;inoise_A<nnoise;inoise_A++)
          {
-            /*code optimization that can be made here:
-               int temp_index = y0*L1*L2*L3;
-               int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
-            */
-            
-            for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+
+            /*loop over the space time to compute the correlators*/
+
+            for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
             {
-               iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
+               /*code optimization that can be made here:
+                  int temp_index = y0*L1*L2*L3;
+                  int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
+               */
+            
+               for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+               {
+                  iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
 
-               /** Computation of Disconnected Part **/
+                  /** Computation of Disconnected Part **/
 
-               /*first we compute in the given space-time point the two pieces appearing in the disconnected correlator*/
-               tmp1 = spinor_prod_dble(1,0,xi_A[inoise]+iy,zeta_A[inoise]+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_A*/
-               tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_B*/
+                  /*first we compute in the given space-time point the two pieces appearing in the disconnected correlator*/
+                  tmp1 = spinor_prod_dble(1,0,xi_A[inoise_A]+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_A*/
+                  tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_B+iy);  /*tmp2 = ( GAMMA_2^dag g5 xi_B )^dag zeta_B*/
+                  /*code optimization: this tmp2 could be brought outside the noise_A loop*/
 
-               /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
-               data.corrDisc_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-               data.corrDisc_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
+                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
 
-               /** Computation of Connected Part**/
+                  /** Computation of Connected Part**/
 
-               /*first we compute in the given space-time point the two pieces appearing in the connected correlator*/
-               tmp1 = spinor_prod_dble(1,0,xi_A[inoise]+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_B*/
-               tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_A[inoise]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
+                  /*first we compute in the given space-time point the two pieces appearing in the connected correlator*/
+                  tmp1 = spinor_prod_dble(1,0,xi_A[inoise_A]+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_B*/
+                  tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
 
-               /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
-               data.corrConn_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-               data.corrConn_tmp[cpr[0]*L0+y0+file_head.tvals*icorr].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
+                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
 
-            } /*end space loop*/
+                  /*the array with the correlator is indexed in the following way:
+                  data.corr[inoise_A,inoise_B,t,icorr]
+                  so that for each correlator, and at each time, nnoise squared configurations are saveds*/
 
-         } /*end y0 loop*/
+               } /*end space loop*/
 
-      } /*end of noise loop, sum of correlators computed*/
+            } /*end y0 loop*/
+
+         } /*end of A noise loop*/
+
+      } /*end of B noise loop, sum of correlators computed*/
 
       /** normalization of the correlators to the number of noise vectors used **/
 
-      for (l=0;l<ncorr*tvals;l++)
+      for (l=0;l<nnoise*nnoise*ncorr*tvals;l++)
       {
          data.corrConn_tmp[l].re /= nnoise*nnoise;
          data.corrConn_tmp[l].im /= nnoise*nnoise;
@@ -2331,8 +2344,8 @@ static void correlators(void)
    combined (summed, since MPI_SUM) into data.corr, that hence now stores the
    complete results of all the correlators*/
 
-   MPI_Allreduce(data.corrConn_tmp,data.corrConn,ncorr*file_head.tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,ncorr*file_head.tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrConn_tmp,data.corrConn,nnoise*nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,nnoise*nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
 
    /** memory deallocation**/
 
