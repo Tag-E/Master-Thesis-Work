@@ -2301,8 +2301,8 @@ static void correlators(void)
                   /*code optimization: this tmp2 could be brought outside the noise_A loop*/
 
                   /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
-                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += tmp1.re*tmp2.im + tmp1.im*tmp2.re;
 
                   /** Computation of Connected Part**/
 
@@ -2311,8 +2311,8 @@ static void correlators(void)
                   tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
 
                   /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
-                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re = tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im = tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += tmp1.re*tmp2.re - tmp1.im*tmp2.im;
+                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += tmp1.re*tmp2.im + tmp1.im*tmp2.re;
 
                   /*the array with the correlator is indexed in the following way:
                   data.corr[inoise_A,inoise_B,t,icorr]
@@ -2325,16 +2325,6 @@ static void correlators(void)
          } /*end of A noise loop*/
 
       } /*end of B noise loop, sum of correlators computed*/
-
-      /** normalization of the correlators to the number of noise vectors used **/
-
-      for (l=0;l<nnoise*nnoise*ncorr*tvals;l++)
-      {
-         data.corrConn_tmp[l].re /= nnoise*nnoise;
-         data.corrConn_tmp[l].im /= nnoise*nnoise;
-         data.corrDisc_tmp[l].re /= nnoise*nnoise;
-         data.corrDisc_tmp[l].im /= nnoise*nnoise;
-      }
 
    } /*end of loop over the correlators*/
 
