@@ -1,6 +1,6 @@
 /*******************************************************************************
 *
-* File deltaF2_4fop_3PointFunc.c
+* File odd_df2_4fop.c
 *
 * Copyright (C) 2024 Emilio Taggi
 *
@@ -31,7 +31,7 @@
 *
 * Computation of quark propagators
 *
-* Syntax: deltaF2_4fop_3PointFunc -i <input file> [-noexp] [-a]
+* Syntax: odd_df2_4fop -i <input file> [-noexp] [-a]
 *
 * For usage instructions see the file README.deltaF2_4fop
 *
@@ -92,6 +92,11 @@
 /******************* Declaration of Global Variables ***************************/
 /*******************************************************************************/
 
+/*** constants ***/
+
+/*number of operators to be computed for each correlator (VA, AV, PS, SP TT~)*/
+#define noperator 5
+
 
 /*** declaration of custom made structures ***/
 
@@ -116,9 +121,6 @@ static struct
    int *typeA; /*array containing the Dirac structure of the first meson in each correlator*/
    int *typeB; /*array containing the Dirac structure of the second meson in each correlator*/
 
-   int *type1; /*array containing the Dirac structure of the GAMMA_1 in each correlator*/
-   int *type2; /*array containing the Dirac structure of the GAMMA_2 in each correlator*/
-
    int *x0; /*array containing the first source time slice of each correlator*/
    int *z0; /*array containing the second source time slice of each correlator*/
 } file_head;
@@ -135,6 +137,15 @@ static struct
    complex_dble *corrDisc_tmp; /*partial value of the discconnected part of the correlators computed by a single process*/
    int nc; /*index of the gauge configuration the correlator is related to*/
 } data;
+
+/*structure containing the list of GAMMA1 and GAMMA2 structures appearing in each deltaF2 4f operator*/
+static struct
+{
+   int ngammas; /*number of Dirac structures in each operator to be summed over*/
+   int *type1; /*array containing the Dirac structure of the GAMMA_1 in each piece of the operator*/
+   int *type2; /*array containing the Dirac structure of the GAMMA_2 in each piece of the operator*/
+   double *weights; /*weights appearing in the sum over the pieces in the operator*/
+} operator_info[noperator];
 
 
 /*** variables for input reading ***/
@@ -202,9 +213,6 @@ static int *props4; /*array containing the type of the fourth quark appearing in
 static int *typeA; /*array containing the dirac structures GAMMA_A (first meson) appearing in each correlator*/
 static int *typeB; /*array containing the dirac structures GAMMA_B (second meson) appearing in each correlator*/
 
-static int *type1; /*array containing the dirac structures GAMMA_1 appearing in each correlator*/
-static int *type2; /*array containing the dirac structures GAMMA_2 appearing in each correlator*/
-
 static int *x0s; /*array containing the time slice of the first source (x0) of each correlator*/
 static int *z0s; /*array containing the time slice of the second source (z0) of each correlator*/
 
@@ -230,7 +238,7 @@ static char dat_dir[NAME_SIZE]; /*path of the directory where various data files
 the maximum lenght of the various files' names is specified by NAME_SIZE,
 with some files being slightly longer (by the below offsets) and by a factor of 2 due to the way their name is constructed
 */
-#define len_filename 30 /* = lenght of the string given by "/" + ".deltaF2_4fop_3PointFunc.log"*/
+#define len_filename 20 /* = lenght of the string given by "/" + ".odd_df2_4fop.log"*/
 #define len_offset 10 /* = lenght of the string given by "/" + "n%d_%d" */
 #define len_tilda 1 /* = lenght of the string "~" */
 
@@ -336,7 +344,7 @@ static void read_dirs(void)
       /*an error is raised if first, last and step are not valid:
         last-first should be non negative and an integer multiple of step*/
       error_root((last<first)||(step<1)||(((last-first)%step)!=0),1,
-                 "read_dirs [deltaF2_4fop_3PointFunc.c]","Improper configuration range");
+                 "read_dirs [odd_df2_4fop.c]","Improper configuration range");
    }
 
    /*all the parameters read during process 0 are broadcasted
@@ -367,28 +375,28 @@ static void setup_files(void)
    /*lenght check of the string loc_dir or cnfg_dir*/
    if (noexp)
       error_root(name_size("%s/%sn%d_%d",loc_dir,nbase,last,NPROC-1)>=NAME_SIZE,
-                 1,"setup_files [deltaF2_4fop_3PointFunc.c]","loc_dir name is too long");
+                 1,"setup_files [odd_df2_4fop.c]","loc_dir name is too long");
    else
       error_root(name_size("%s/%sn%d",cnfg_dir,nbase,last)>=NAME_SIZE,
-                 1,"setup_files [deltaF2_4fop_3PointFunc.c]","cnfg_dir name is too long");
+                 1,"setup_files [odd_df2_4fop.c]","cnfg_dir name is too long");
 
    /*check on accessibility (only on process 0) and name lenght of dat_dir*/
    check_dir_root(dat_dir);
-   error_root(name_size("%s/%s.deltaF2_4fop_3PointFunc.dat~",dat_dir,outbase)>=NAME_SIZE,
-              1,"setup_files [deltaF2_4fop_3PointFunc.c]","dat_dir name is too long");
+   error_root(name_size("%s/%s.odd_df2_4fop.dat~",dat_dir,outbase)>=NAME_SIZE,
+              1,"setup_files [odd_df2_4fop.c]","dat_dir name is too long");
 
    /*check on accessibility (only on process 0) and name lenght of log_dir*/
    check_dir_root(log_dir);
-   error_root(name_size("%s/%s.deltaF2_4fop_3PointFunc.log~",log_dir,outbase)>=NAME_SIZE,
-              1,"setup_files [deltaF2_4fop_3PointFunc.c]","log_dir name is too long");
+   error_root(name_size("%s/%s.odd_df2_4fop.log~",log_dir,outbase)>=NAME_SIZE,
+              1,"setup_files [odd_df2_4fop.c]","log_dir name is too long");
 
    /*assignment of files' names based on input file specifications*/
 
-   sprintf(log_file,"%s/%s.deltaF2_4fop_3PointFunc.log",log_dir,outbase);
-   sprintf(end_file,"%s/%s.deltaF2_4fop_3PointFunc.end",log_dir,outbase);
-   sprintf(par_file,"%s/%s.deltaF2_4fop_3PointFunc.par",dat_dir,outbase);
-   sprintf(dat_file,"%s/%s.deltaF2_4fop_3PointFunc.dat",dat_dir,outbase);
-   sprintf(rng_file,"%s/%s.deltaF2_4fop_3PointFunc.rng",dat_dir,outbase);
+   sprintf(log_file,"%s/%s.odd_df2_4fop.log",log_dir,outbase);
+   sprintf(end_file,"%s/%s.odd_df2_4fop.end",log_dir,outbase);
+   sprintf(par_file,"%s/%s.odd_df2_4fop.par",dat_dir,outbase);
+   sprintf(dat_file,"%s/%s.odd_df2_4fop.dat",dat_dir,outbase);
+   sprintf(rng_file,"%s/%s.odd_df2_4fop.rng",dat_dir,outbase);
    sprintf(log_save,"%s~",log_file);
    sprintf(par_save,"%s~",par_file);
    sprintf(dat_save,"%s~",dat_file);
@@ -471,15 +479,15 @@ static void read_lat_parms(void)
       /*check on the validity of the parameters read from input file*/
 
       /*nprop, ncorr and nnoise must be positive integers*/
-      error_root(nprop<1,1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+      error_root(nprop<1,1,"read_lat_parms [odd_df2_4fop.c]",
                  "Specified nprop must be larger than zero");
-      error_root(ncorr<1,1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+      error_root(ncorr<1,1,"read_lat_parms [odd_df2_4fop.c]",
                  "Specified ncorr must be larger than zero");
-      error_root(nnoise<1,1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+      error_root(nnoise<1,1,"read_lat_parms [odd_df2_4fop.c]",
                  "Specified nnoise must be larger than zero");
       
       /*eoflg must be either 0 or 1*/
-      error_root((eoflg<0)||(eoflg>1),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+      error_root((eoflg<0)||(eoflg>1),1,"read_lat_parms [odd_df2_4fop.c]",
 		 "Specified eoflg must be 0,1");
 
       /*noise_type must be either U1, Z2 or GAUSS*/
@@ -520,9 +528,6 @@ static void read_lat_parms(void)
    typeA=malloc(ncorr*sizeof(int)); /*Dirac structure of first meson, one for each correlator*/
    typeB=malloc(ncorr*sizeof(int)); /*Dirac structure of second meson, one for each correlator*/
 
-   type1=malloc(ncorr*sizeof(int)); /*Dirac structure of GAMMA_1, one for each correlator*/
-   type2=malloc(ncorr*sizeof(int)); /*Dirac structure of GAMMA_2, one for each correlator*/
-
    x0s=malloc(ncorr*sizeof(int)); /*time slice of the first source, one for each correlator*/
    z0s=malloc(ncorr*sizeof(int)); /*time slice of the second source, one for each correlator*/
    
@@ -540,9 +545,6 @@ static void read_lat_parms(void)
    file_head.typeA=typeA; /*Dirac structure of first meson, one for each correlator*/
    file_head.typeB=typeB; /*Dirac structure of second meson, one for each correlator*/
 
-   file_head.type1=type1; /*Dirac structure of GAMMA_1, one for each correlator*/
-   file_head.type2=type2; /*Dirac structure of GAMMA_2, one for each correlator*/
-
    file_head.x0=x0s; /*time slice of the first source, one for each correlator*/
    file_head.z0=z0s; /*time slice of the first source, one for each correlator*/
 
@@ -550,11 +552,10 @@ static void read_lat_parms(void)
    error((kappas==NULL)||(mus==NULL)||(isps==NULL)||
          (props1==NULL)||(props2==NULL)||(props3==NULL)||(props4==NULL)||
          (typeA==NULL)||(typeB==NULL)||
-         (type1==NULL)||(type2==NULL)||
          (x0s==NULL)||(z0s==NULL)||
          (file_head.kappa1==NULL)||(file_head.kappa2==NULL)||(file_head.kappa3==NULL)||(file_head.kappa4==NULL)||
          (file_head.mus1==NULL)||(file_head.mus2==NULL)||(file_head.mus3==NULL)||(file_head.mus4==NULL),
-         1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]","Out of memory");
+         1,"read_lat_parms [odd_df2_4fop.c]","Out of memory");
 
 
    /*on process 0 reads from the input file the parameters
@@ -581,13 +582,13 @@ static void read_lat_parms(void)
          /*the types of the first and the second quarks are read from the input file and
          the validity of the input parameters is checked (they must range from 0 to to nprop-1)*/
          read_line("iprop","%d %d %d %d", &props1[icorr], &props2[icorr], &props3[icorr], &props4[icorr]);
-         error_root((props1[icorr]<0)||(props1[icorr]>=nprop),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((props1[icorr]<0)||(props1[icorr]>=nprop),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Propagator index out of range");
-         error_root((props2[icorr]<0)||(props2[icorr]>=nprop),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((props2[icorr]<0)||(props2[icorr]>=nprop),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Propagator index out of range");
-         error_root((props3[icorr]<0)||(props3[icorr]>=nprop),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((props3[icorr]<0)||(props3[icorr]>=nprop),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Propagator index out of range");
-         error_root((props4[icorr]<0)||(props4[icorr]>=nprop),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((props4[icorr]<0)||(props4[icorr]>=nprop),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Propagator index out of range");
 
          /*the two temporary strings are used to read from the input file the Dirac
@@ -603,29 +604,16 @@ static void read_lat_parms(void)
          setTypeFromTmpString(tmpstring2,typeB,icorr); /*conversion of tmpstring2 to an integer identifier*/
 
          /*validity check of type1 and type2 read from the input file*/
-         error_root((typeA[icorr]==-1)||(typeB[icorr]==-1),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
-                 "Unknown or unsupported Dirac structure");
-
-
-         read_line("gamma_1_2","%s %s",tmpstring,tmpstring2); /*reading of GAMMA1 and GAMMA2*/
-         
-         type1[icorr]=-1; /*inizialization of GAMMA_1 (its integer identifier)*/
-         type2[icorr]=-1; /*inizialization of GAMMA_2 (its integer identifier)*/
-         
-         setTypeFromTmpString(tmpstring,type1,icorr); /*conversion of tmpstring to an integer identifier*/
-         setTypeFromTmpString(tmpstring2,type2,icorr); /*conversion of tmpstring2 to an integer identifier*/
-
-         /*validity check of type1 and type2 read from the input file*/
-         error_root((type1[icorr]==-1)||(type2[icorr]==-1),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((typeA[icorr]==-1)||(typeB[icorr]==-1),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Unknown or unsupported Dirac structure");
 
          /*source time slice is read for each correlator and its validity checked
          (the timeslice must be inside the previously specified time boundaries)*/
          read_line("x0","%d",&x0s[icorr]);
-         error_root((x0s[icorr]<=0)||(x0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((x0s[icorr]<=0)||(x0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Specified time x0 is out of range");
          read_line("z0","%d",&z0s[icorr]);
-         error_root((z0s[icorr]<=0)||(z0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [deltaF2_4fop_3PointFunc.c]",
+         error_root((z0s[icorr]<=0)||(z0s[icorr]>=(NPROC0*L0-1)),1,"read_lat_parms [odd_df2_4fop.c]",
                  "Specified time z0 is out of range");
 
       }
@@ -646,9 +634,6 @@ static void read_lat_parms(void)
 
    MPI_Bcast(typeA,ncorr,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(typeB,ncorr,MPI_INT,0,MPI_COMM_WORLD);
-
-   MPI_Bcast(type1,ncorr,MPI_INT,0,MPI_COMM_WORLD);
-   MPI_Bcast(type2,ncorr,MPI_INT,0,MPI_COMM_WORLD);
 
    MPI_Bcast(x0s,ncorr,MPI_INT,0,MPI_COMM_WORLD);
    MPI_Bcast(z0s,ncorr,MPI_INT,0,MPI_COMM_WORLD);
@@ -827,11 +812,11 @@ static void read_infile(int argc,char *argv[])
       endian=endianness(); /*endianness of the machine*/
 
       /*gives an error if input file not specified*/
-      error_root((ifile==0)||(ifile==(argc-1)),1,"read_infile [deltaF2_4fop_3PointFunc.c]",
-                 "Syntax: deltaF2_4fop_3PointFunc -i <input file> [-noexp] [-a [-norng]]");
+      error_root((ifile==0)||(ifile==(argc-1)),1,"read_infile [odd_df2_4fop.c]",
+                 "Syntax: odd_df2_4fop -i <input file> [-noexp] [-a [-norng]]");
 
       /*gives an error if the machine has unkown endianness*/
-      error_root(endian==UNKNOWN_ENDIAN,1,"read_infile [deltaF2_4fop_3PointFunc.c]",
+      error_root(endian==UNKNOWN_ENDIAN,1,"read_infile [odd_df2_4fop.c]",
                  "Machine has unknown endianness");
 
       noexp=find_opt(argc,argv,"-noexp"); /*option to specify configurations reading*/
@@ -843,7 +828,7 @@ static void read_infile(int argc,char *argv[])
       /*setting stdin to be the input file,
         gives an error if the input file cannot be open*/
       fin=freopen(argv[ifile+1],"r",stdin);
-      error_root(fin==NULL,1,"read_infile [deltaF2_4fop_3PointFunc.c]",
+      error_root(fin==NULL,1,"read_infile [odd_df2_4fop.c]",
                  "Unable to open input file");
    }
 
@@ -868,7 +853,7 @@ static void read_infile(int argc,char *argv[])
       else
          fdat=fopen(par_file,"wb");
 
-      error_root(fdat==NULL,1,"read_infile [deltaF2_4fop_3PointFunc.c]",
+      error_root(fdat==NULL,1,"read_infile [odd_df2_4fop.c]",
                  "Unable to open parameter file");
    }
 
@@ -896,20 +881,20 @@ static void read_infile(int argc,char *argv[])
 static void alloc_data(void)
 {
    /*to store all the values of the correlators the number of complex double needed is equal 
-     to the number of correlators times the number of time intervals time the number of noise vectors squared
+     to the number of correlators times the number of time intervals timse the number of noise vectors squared time number of operators
      (such a quantity is needed both for data.corr and for the temporary counterpart data.corr_tmp,
      and both for the connected and the disconnected counterpart)
    */
 
    /*memory allocation*/
-   data.corrConn=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrConn_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrDisc=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
-   data.corrDisc_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*sizeof(complex_dble));
+   data.corrConn=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*noperator*sizeof(complex_dble));
+   data.corrConn_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*noperator*sizeof(complex_dble));
+   data.corrDisc=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*noperator*sizeof(complex_dble));
+   data.corrDisc_tmp=malloc(file_head.nnoise*file_head.nnoise*file_head.ncorr*file_head.tvals*noperator*sizeof(complex_dble));
    
    /*check on correct memory allocation*/
    error((data.corrConn==NULL)||(data.corrConn_tmp==NULL)||
-         (data.corrDisc==NULL)||(data.corrDisc_tmp==NULL),1,"alloc_data [deltaF2_4fop_3PointFunc.c]","Unable to allocate data arrays");
+         (data.corrDisc==NULL)||(data.corrDisc_tmp==NULL),1,"alloc_data [odd_df2_4fop.c]","Unable to allocate data arrays");
 }
 
 
@@ -921,7 +906,7 @@ static int read_data(void)
    int ir; /*index used for the reading count*/
    int nr; /*total readings to be done*/
    int chunk; /*size of the chunk written on the file*/
-   int icorr; /*indicex used in the function*/
+   int icorr; /*index used in the function*/
 
    /*first we read nc*/
 
@@ -936,13 +921,13 @@ static int read_data(void)
       nr+=chunk; /*count update*/
       
       /*reading*/
-      ir+=fread(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),
+      ir+=fread(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),
                     sizeof(double),chunk,fdat);
       
       nr+=chunk; /*count update*/
       
       /*reading*/
-      ir+=fread(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),
+      ir+=fread(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),
                     sizeof(double),chunk,fdat);
    }
 
@@ -951,7 +936,7 @@ static int read_data(void)
       return 0;
 
    /*check on correct reading count*/
-   error_root(ir!=nr,1,"read_data [deltaF2_4fop_3PointFunc.c]",
+   error_root(ir!=nr,1,"read_data [odd_df2_4fop.c]",
                  "Read error or incomplete data record");
    
    /*if the machine is big endian swaps the bit of the read input (that is always little endian)*/
@@ -982,7 +967,7 @@ static void write_data(void)
    {
       /*open data file and check on correct opening procedure*/
       fdat=fopen(dat_file,"ab");
-      error_root(fdat==NULL,1,"write_data [deltaF2_4fop_3PointFunc.c]",
+      error_root(fdat==NULL,1,"write_data [odd_df2_4fop.c]",
                  "Unable to open dat file");
 
       /*first we write the index of the gauge configuration and the 4fop complete correlators*/
@@ -992,8 +977,8 @@ static void write_data(void)
       /*swap of bit before writing if big endian*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrConn);
-         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrConn);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
@@ -1004,29 +989,29 @@ static void write_data(void)
 
       for (icorr=0;icorr<file_head.ncorr;icorr++)
       {
-         chunk=file_head.nnoise*file_head.nnoise*file_head.tvals*2; /*size of the chunk to write*/
+         chunk=file_head.nnoise*file_head.nnoise*file_head.tvals*noperator*2; /*size of the chunk to write*/
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),sizeof(double),chunk,fdat);
 
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise]),sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),sizeof(double),chunk,fdat);
          
       }
 
       /*swap of bit after writing if big endian to restore initial situation*/
       if(endian==BIG_ENDIAN)
       {
-         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrConn);
-         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrConn);
+         bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrDisc);
          bswap_int(1,&(data.nc));
       }
 
       /*check on correct writing count*/
-      error_root(iw!=nw,1,"write_data [deltaF2_4fop_3PointFunc.c]",
+      error_root(iw!=nw,1,"write_data [odd_df2_4fop.c]",
                  "Incorrect write count");
 
       /*close data file*/
@@ -1066,9 +1051,9 @@ static void check_file_head(void)
       bswap_int(1,istd);
    ie+=(istd[0]!=(stdint_t)(file_head.noisetype));
 
-   error_root(ir!=4,1,"check_file_head [deltaF2_4fop_3PointFunc.c]",
+   error_root(ir!=4,1,"check_file_head [odd_df2_4fop.c]",
               "Incorrect read count");
-   error_root(ie!=0,1,"check_file_head [deltaF2_4fop_3PointFunc.c]",
+   error_root(ie!=0,1,"check_file_head [odd_df2_4fop.c]",
               "Unexpected value of ncorr, nnoise, tvals or noisetype");
 
    
@@ -1130,17 +1115,6 @@ static void check_file_head(void)
       ir+=fread(istd,sizeof(stdint_t),1,fdat);
       if (endian==BIG_ENDIAN)
          bswap_int(1,istd);
-      ie+=(istd[0]!=(stdint_t)(file_head.type1[i]));
-
-      ir+=fread(istd,sizeof(stdint_t),1,fdat);
-      if (endian==BIG_ENDIAN)
-         bswap_int(1,istd);
-      ie+=(istd[0]!=(stdint_t)(file_head.type2[i]));
-
-
-      ir+=fread(istd,sizeof(stdint_t),1,fdat);
-      if (endian==BIG_ENDIAN)
-         bswap_int(1,istd);
       ie+=(istd[0]!=(stdint_t)(file_head.x0[i]));
 
       ir+=fread(istd,sizeof(stdint_t),1,fdat);
@@ -1149,9 +1123,9 @@ static void check_file_head(void)
       ie+=(istd[0]!=(stdint_t)(file_head.z0[i]));
 
 
-      error_root(ir!=14,1,"check_file_head [deltaF2_4fop_3PointFunc.c]",
+      error_root(ir!=12,1,"check_file_head [odd_df2_4fop.c]",
               "Incorrect read count");
-      error_root(ie!=0,1,"check_file_head [deltaF2_4fop_3PointFunc.c]",
+      error_root(ie!=0,1,"check_file_head [odd_df2_4fop.c]",
               "Unexpected value of kappa, type, x0 or isreal");
    }
 }
@@ -1187,7 +1161,7 @@ static void write_file_head(void)
       bswap_int(1,istd);
    iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
-   error_root(iw!=4,1,"write_file_head [deltaF2_4fop_3PointFunc.c]",
+   error_root(iw!=4,1,"write_file_head [odd_df2_4fop.c]",
               "Incorrect write count");
 
    
@@ -1246,17 +1220,6 @@ static void write_file_head(void)
       iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
 
-      istd[0]=(stdint_t)(file_head.type1[i]);
-      if (endian==BIG_ENDIAN)
-         bswap_int(1,istd);
-      iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
-
-      istd[0]=(stdint_t)(file_head.type2[i]);
-      if (endian==BIG_ENDIAN)
-         bswap_int(1,istd);
-      iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
-
-
       istd[0]=(stdint_t)(file_head.x0[i]);
       if (endian==BIG_ENDIAN)
          bswap_int(1,istd);
@@ -1268,7 +1231,7 @@ static void write_file_head(void)
       iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
 
-      error_root(iw!=14,1,"write_file_head [deltaF2_4fop_3PointFunc.c]",
+      error_root(iw!=12,1,"write_file_head [odd_df2_4fop.c]",
               "Incorrect write count");
 
    }
@@ -1290,7 +1253,7 @@ static void check_old_log(int *fst,int *lst,int *stp)
    int np[4],bp[4];
 
    fend=fopen(log_file,"r");
-   error_root(fend==NULL,1,"check_old_log [deltaF2_4fop_3PointFunc.c]",
+   error_root(fend==NULL,1,"check_old_log [odd_df2_4fop.c]",
               "Unable to open log file");
 
    fc=0;
@@ -1343,11 +1306,11 @@ static void check_old_log(int *fst,int *lst,int *stp)
 
    fclose(fend);
 
-   error_root((ie&0x1)!=0x0,1,"check_old_log [deltaF2_4fop_3PointFunc.c]",
+   error_root((ie&0x1)!=0x0,1,"check_old_log [odd_df2_4fop.c]",
               "Incorrect read count");
-   error_root((ie&0x2)!=0x0,1,"check_old_log [deltaF2_4fop_3PointFunc.c]",
+   error_root((ie&0x2)!=0x0,1,"check_old_log [odd_df2_4fop.c]",
               "Configuration numbers are not equally spaced");
-   error_root(isv==0,1,"check_old_log [deltaF2_4fop_3PointFunc.c]",
+   error_root(isv==0,1,"check_old_log [odd_df2_4fop.c]",
               "Log file extends beyond the last configuration save");
 
    (*fst)=fc;
@@ -1366,7 +1329,7 @@ static void check_old_dat(int fst,int lst,int stp)
    int fc,lc,dc,pc;
 
    fdat=fopen(dat_file,"rb");
-   error_root(fdat==NULL,1,"check_old_dat [deltaF2_4fop_3PointFunc.c]",
+   error_root(fdat==NULL,1,"check_old_dat [odd_df2_4fop.c]",
               "Unable to open data file");
 
    check_file_head();
@@ -1394,11 +1357,11 @@ static void check_old_dat(int fst,int lst,int stp)
 
    fclose(fdat);
 
-   error_root(ic==0,1,"check_old_dat [deltaF2_4fop_3PointFunc.c]",
+   error_root(ic==0,1,"check_old_dat [odd_df2_4fop.c]",
               "No data records found");
-   error_root((ie&0x1)!=0x0,1,"check_old_dat [deltaF2_4fop_3PointFunc.c]",
+   error_root((ie&0x1)!=0x0,1,"check_old_dat [odd_df2_4fop.c]",
               "Configuration numbers are not equally spaced");
-   error_root((fst!=fc)||(lst!=lc)||(stp!=dc),1,"check_old_dat [deltaF2_4fop_3PointFunc.c]",
+   error_root((fst!=fc)||(lst!=lc)||(stp!=dc),1,"check_old_dat [odd_df2_4fop.c]",
               "Configuration range is not as reported in the log file");
 }
 
@@ -1426,12 +1389,12 @@ static void check_files(void)
          /*raise an error if the previous and the current step of the scan are different
          (except for the case in which in the previous scan there was only one configuration,
          i.e. the case in which first=last)*/
-         error_root((fst!=lst)&&(stp!=step),1,"check_files [deltaF2_4fop_3PointFunc.c]",
+         error_root((fst!=lst)&&(stp!=step),1,"check_files [odd_df2_4fop.c]",
                     "Continuation run:\n"
                     "Previous run had a different configuration separation");
          
          /*raise an error if the current scan does not continue the previous one*/
-         error_root(first!=lst+step,1,"check_files [deltaF2_4fop_3PointFunc.c]",
+         error_root(first!=lst+step,1,"check_files [odd_df2_4fop.c]",
                     "Continuation run:\n"
                     "Configuration range does not continue the previous one");
       }
@@ -1440,18 +1403,18 @@ static void check_files(void)
          /*attempt to read log_file: if that is possible an error is raised
          as to avoid overwriting the .log file*/
          fin=fopen(log_file,"r");
-         error_root(fin!=NULL,1,"check_files [deltaF2_4fop_3PointFunc.c]",
+         error_root(fin!=NULL,1,"check_files [odd_df2_4fop.c]",
                     "Attempt to overwrite old *.log file");
          
          /*attempt to read dat_file: if that is possible an error is raised
          as to avoid overwriting the .dat file*/
          fdat=fopen(dat_file,"r");
-         error_root(fdat!=NULL,1,"check_files [deltaF2_4fop_3PointFunc.c]",
+         error_root(fdat!=NULL,1,"check_files [odd_df2_4fop.c]",
                     "Attempt to overwrite old *.dat file");
          
          /*creates of the .dat file and checks whether the operation was successful*/
          fdat=fopen(dat_file,"wb");
-         error_root(fdat==NULL,1,"check_files [deltaF2_4fop_3PointFunc.c]",
+         error_root(fdat==NULL,1,"check_files [odd_df2_4fop.c]",
                     "Unable to open data file");
          
          /*the structure file_head containing correlators info is written to the .dat file,
@@ -1491,7 +1454,7 @@ static void print_info(void)
       else
          flog=freopen(log_file,"w",stdout);
 
-      error_root(flog==NULL,1,"print_info [deltaF2_4fop_3PointFunc.c]",
+      error_root(flog==NULL,1,"print_info [odd_df2_4fop.c]",
                  "Unable to open log file");
       printf("\n");
 
@@ -1585,10 +1548,11 @@ static void print_info(void)
             printf("Correlator %i:\n",i);
             printf("iprop  = %i %i %i %i\n",props1[i],props2[i],props3[i],props4[i]);
             printf("gamma_A_B   = %i %i\n",typeA[i],typeB[i]);
-            printf("gamma_1_2   = %i %i\n",type1[i],type2[i]); /*TODO: strings*/ /*(??)*/
             printf("x0     = %i\n",x0s[i]);
             printf("z0     = %i\n\n",z0s[i]);
          }
+
+         printf("Odd DeltaF=2 4 Fermions operators: VA, AV, SP, PS, TT~\n\n");
         
       }
 
@@ -1604,6 +1568,127 @@ static void print_info(void)
              first,last,step);
       fflush(flog);
    }
+}
+
+
+/*** functions handling the operator_info struct ***/
+
+/*function used to initialize the structure with the GAMMA1 and GAMMA2 of the 4 fermions operators*/
+static void init_4foperators(void)
+{
+   /*first for each of the 5 odd operators we allocate the needed memory*/
+
+   /*0 is related to the VA operator*/
+   operator_info[0].ngammas = 4;  /*the sum is over mu, so over 4 terms*/
+   operator_info[0].type1 = malloc(4*sizeof(int)); /*array needed to store the GAMMA1 of each piece of the sum*/
+   operator_info[0].type2 = malloc(4*sizeof(int)); /*array needed to store the GAMMA2 of each piece of the sum*/
+   operator_info[0].weights = malloc(4*sizeof(double)); /*array of weights in the sum*/
+
+   /*1 is related to the AV operator*/
+   operator_info[1].ngammas = 4;  /*the sum is over mu, so over 4 terms*/
+   operator_info[1].type1 = malloc(4*sizeof(int)); /*array needed to store the GAMMA1 of each piece of the sum*/
+   operator_info[1].type2 = malloc(4*sizeof(int)); /*array needed to store the GAMMA2 of each piece of the sum*/
+   operator_info[1].weights = malloc(4*sizeof(double)); /*array of weights in the sum*/
+
+   /*2 is related to the SP operator*/
+   operator_info[2].ngammas = 1;  /*the sum is over mu, so over 4 terms*/
+   operator_info[2].type1 = malloc(1*sizeof(int)); /*array needed to store the GAMMA1 of each piece of the sum*/
+   operator_info[2].type2 = malloc(1*sizeof(int)); /*array needed to store the GAMMA2 of each piece of the sum*/
+   operator_info[2].weights = malloc(1*sizeof(double)); /*array of weights in the sum*/
+
+   /*3 is related to the PS operator*/
+   operator_info[3].ngammas = 1;  /*the sum is over mu, so over 4 terms*/
+   operator_info[3].type1 = malloc(1*sizeof(int)); /*array needed to store the GAMMA1 of each piece of the sum*/
+   operator_info[3].type2 = malloc(1*sizeof(int)); /*array needed to store the GAMMA2 of each piece of the sum*/
+   operator_info[3].weights = malloc(1*sizeof(double)); /*array of weights in the sum*/
+
+   /*4 is related to the TT~ operator*/
+   operator_info[4].ngammas = 6;  /*the sum is over mu, so over 4 terms*/
+   operator_info[4].type1 = malloc(6*sizeof(int)); /*array needed to store the GAMMA1 of each piece of the sum*/
+   operator_info[4].type2 = malloc(6*sizeof(int)); /*array needed to store the GAMMA2 of each piece of the sum*/
+   operator_info[4].weights = malloc(6*sizeof(double)); /*array of weights in the sum*/
+
+   /*correct memory allocation is now checked*/
+   error((operator_info[0].type1==NULL)||(operator_info[0].type2==NULL)||(operator_info[0].weights==NULL)||
+         (operator_info[1].type1==NULL)||(operator_info[1].type2==NULL)||(operator_info[1].weights==NULL)||
+         (operator_info[2].type1==NULL)||(operator_info[2].type2==NULL)||(operator_info[2].weights==NULL)||
+         (operator_info[3].type1==NULL)||(operator_info[3].type2==NULL)||(operator_info[3].weights==NULL)||
+         (operator_info[4].type1==NULL)||(operator_info[4].type2==NULL)||(operator_info[4].weights==NULL),
+         1,"init_4foperators [odd_df2_4fop.c]","Out of memory");
+
+   /*the array are now initialized with the correct structures*/
+
+   /*for VA the sum is over gamma_mu * gamma_mu gamma5*/
+   operator_info[0].type1[0] = GAMMA0_TYPE;     /*these 4 are gammma_mu*/
+   operator_info[0].type1[1] = GAMMA1_TYPE;
+   operator_info[0].type1[2] = GAMMA2_TYPE;
+   operator_info[0].type1[3] = GAMMA3_TYPE;
+
+   operator_info[0].type2[0] = GAMMA0GAMMA5_TYPE; /*these 4 are gamma_mu gamma5*/
+   operator_info[0].type2[1] = GAMMA1GAMMA5_TYPE;
+   operator_info[0].type2[2] = GAMMA2GAMMA5_TYPE;
+   operator_info[0].type2[3] = GAMMA3GAMMA5_TYPE;
+
+   operator_info[0].weights[0] = 1.0; /*all terms summed with +*/
+   operator_info[0].weights[1] = 1.0;
+   operator_info[0].weights[2] = 1.0;
+   operator_info[0].weights[3] = 1.0;
+
+   /*for AV the sum is over gamma_mu gamma5 * gamma_mu*/
+   operator_info[1].type1[0] = GAMMA0GAMMA5_TYPE;     /*these 4 are gammma_mu gamma5*/
+   operator_info[1].type1[1] = GAMMA1GAMMA5_TYPE;
+   operator_info[1].type1[2] = GAMMA2GAMMA5_TYPE;
+   operator_info[1].type1[3] = GAMMA3GAMMA5_TYPE;
+
+   operator_info[1].type2[0] = GAMMA0_TYPE; /*these 4 are gamma_mu gamma5*/
+   operator_info[1].type2[1] = GAMMA1_TYPE;
+   operator_info[1].type2[2] = GAMMA2_TYPE;
+   operator_info[1].type2[3] = GAMMA3_TYPE;
+
+   operator_info[1].weights[0] = 1.0; /*all terms summed with +*/
+   operator_info[1].weights[1] = 1.0;
+   operator_info[1].weights[2] = 1.0;
+   operator_info[1].weights[3] = 1.0;
+
+   /*for SP there's just the piece identity * gamma5*/
+   operator_info[2].type1[0] = ONE_TYPE; /*identity*/
+   operator_info[2].type2[0] = GAMMA5_TYPE; /*gamma5*/
+   operator_info[2].weights[0] = 1.0;
+
+   /*for PS there's just the piece gamma5 * identity*/
+   operator_info[3].type1[0] = GAMMA5_TYPE; /*gamma5*/
+   operator_info[3].type2[0] = ONE_TYPE; /*identity*/
+   operator_info[3].weights[0] = 1.0;
+
+   /*for TT~ the sum is over gamma_mu gamma_nu * gamma_nu gamma_mu, with mu < nu*/
+   operator_info[4].type1[0] = GAMMA0GAMMA1_TYPE;     /*these 4 are gammma_mu gamma_nu*/
+   operator_info[4].type1[1] = GAMMA0GAMMA2_TYPE;
+   operator_info[4].type1[2] = GAMMA0GAMMA3_TYPE;
+   operator_info[4].type1[3] = GAMMA1GAMMA2_TYPE;
+   operator_info[4].type1[4] = GAMMA1GAMMA3_TYPE;
+   operator_info[4].type1[5] = GAMMA2GAMMA3_TYPE;
+
+   operator_info[4].type2[0] = GAMMA2GAMMA3_TYPE; /*these 4 are gamma5 gamma_mu gamma_vu*/
+   operator_info[4].type2[1] = GAMMA1GAMMA3_TYPE;
+   operator_info[4].type2[2] = GAMMA1GAMMA2_TYPE;
+   operator_info[4].type2[3] = GAMMA0GAMMA3_TYPE;
+   operator_info[4].type2[4] = GAMMA0GAMMA2_TYPE;
+   operator_info[4].type2[5] = GAMMA0GAMMA1_TYPE;
+
+   operator_info[4].weights[0] = 1.0;
+   operator_info[4].weights[1] = -1.0;
+   operator_info[4].weights[2] = -1.0;
+   operator_info[4].weights[3] = 1.0;
+   operator_info[4].weights[4] = -1.0;
+   operator_info[4].weights[5] = 1.0;
+
+   /* T = i/2 times commutator and T~ = i/2 gamma5 times commutator,
+   the commutator cancels the two, so there is an overall minus and relative minuses  coming from the
+   product of gamma5 and gamma_mu gamma_nu*/
+
+   if (my_rank==0)
+      printf("VA, AV, SP, PS, TT~ operators initialized\n\n");
+
 }
 
 
@@ -1624,7 +1709,7 @@ static void init_rng(void)
          /*the random generator is initialized importing the saved state of the random generator from
          the previous run, then the compatibility with the parameters of the current run is checked*/
          ic=import_ranlux(rng_file);
-         error_root(ic!=(first-step),1,"init_rng [deltaF2_4fop_3PointFunc.c]",
+         error_root(ic!=(first-step),1,"init_rng [odd_df2_4fop.c]",
                     "Configuration number mismatch (*.rng file)");
       }
    }
@@ -1652,7 +1737,7 @@ static void save_ranlux(void)
       rlxd_state=rlxs_state+nlxs; /*set rlxd_state memory right after rlxs_state memory*/
 
       /*check on the correct memory allocation*/
-      error(rlxs_state==NULL,1,"save_ranlux [deltaF2_4fop_3PointFunc.c]",
+      error(rlxs_state==NULL,1,"save_ranlux [odd_df2_4fop.c]",
             "Unable to allocate state arrays");
    }
 
@@ -1717,7 +1802,7 @@ static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
    /*nws, nwsd, nwv, nwvd are initialized to 0*/
 
    sp=solver_parms(0); /*set sp to the global structure with the solver parameters*/
-   nsd=2*file_head.nnoise+2+1; /*nsd set to 2 times the number of noise vectors +2 +1 (xiA,zetaA x nnoise + xiB,zetaB + a tmp spinor) */
+   nsd=2*file_head.nnoise+2+1+2; /*nsd set to 2 times the number of noise vectors +2 +1 (xiA,zetaA x nnoise + xiB,zetaB + a tmp spinor+2tmp spinors) */
 
    /*depending on the solver method nws, nwsd, nwv, nwvd get modified
    (they increase if they are smaller than some minimum)*/
@@ -1739,7 +1824,7 @@ static void wsize(int *nws,int *nwsd,int *nwv,int *nwvd)
       dfl_wsize(nws,nwv,nwvd); /*compatibility check with the specifics of the deflation subspace (??)*/
    }
    else /*raises an error if the solver method is not one of the allowed ones*/
-      error_root(1,1,"wsize [deltaF2_4fop_3PointFunc.c]",
+      error_root(1,1,"wsize [odd_df2_4fop.c]",
                  "Unknown or unsupported solver");
 }
 
@@ -1926,7 +2011,7 @@ void mul_g5_GAMMAdag(spinor_dble *eta, int type, spinor_dble *out_spinor)
          mulg5_dble(VOLUME,out_spinor);
          break;
       default:
-         error_root(1,1,"mul_g5_GAMMAdag [deltaF2_4fop_3PointFunc.c]",
+         error_root(1,1,"mul_g5_GAMMAdag [odd_df2_4fop.c]",
                  "Unknown or unsupported type");
    }
 }
@@ -1961,7 +2046,7 @@ static void solve_dirac(int prop, spinor_dble *source_spinor, spinor_dble *out_s
          printf("%i\n",status[0]);
       
       /*raises an error if the solver was unsuccesful (i.e. status<0)*/
-      error_root(status[0]<0,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+      error_root(status[0]<0,1,"solve_dirac [odd_df2_4fop.c]",
                  "CGNE solver failed (status = %d)",status[0]);
 
       Dw_dble(-mus[prop],source_spinor,out_spinor); /*out_spinor = (Dw + i (-mu) gamma5) source_spinor*/
@@ -1990,7 +2075,7 @@ static void solve_dirac(int prop, spinor_dble *source_spinor, spinor_dble *out_s
          printf("%i\n",status[0]);
       
       /*raises an error if the solver was unsuccesful (i.e. status<0)*/
-      error_root(status[0]<0,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+      error_root(status[0]<0,1,"solve_dirac [odd_df2_4fop.c]",
                  "SAP_GCR solver failed (status = %d)",status[0]);
       
    }
@@ -2009,12 +2094,12 @@ static void solve_dirac(int prop, spinor_dble *source_spinor, spinor_dble *out_s
       
       /*raises an error if the solver was unsuccesful (i.e. status<0)*/
       error_root((status[0]<0)||(status[1]<0),1,
-                 "solve_dirac [deltaF2_4fop_3PointFunc.c]","DFL_SAP_GCR solver failed "
+                 "solve_dirac [odd_df2_4fop.c]","DFL_SAP_GCR solver failed "
                  "(status = %d,%d)",status[0],status[1]);
       
    }
    else /*if the specified solver is unknown raises an error*/
-      error_root(1,1,"solve_dirac [deltaF2_4fop_3PointFunc.c]",
+      error_root(1,1,"solve_dirac [odd_df2_4fop.c]",
                  "Unknown or unsupported solver");
 }
 
@@ -2104,7 +2189,7 @@ void mul_GAMMAdag_g5(spinor_dble *xi,int type,spinor_dble *out_spinor)
          mulg5_dble(VOLUME,out_spinor);
          break;
       default:
-         error_root(1,1,"mul_GAMMAdag_g5 [deltaF2_4fop_3PointFunc.c]",
+         error_root(1,1,"mul_GAMMAdag_g5 [odd_df2_4fop.c]",
                  "Unknown or unsupported type");
    }
 }
@@ -2119,6 +2204,8 @@ static void correlators(void)
    /** declaration of local variables **/
 
    int icorr; /*index running over the correlators to be computed*/
+   int iop; /*index running over the 5 different odd 4f operators*/
+   int ipiece; /*index running over the pieces to be summed over in each of the 5 operators*/
    int inoise_A, inoise_B; /*indeces running over the noise vectors to be generated*/
 
    int stat[4]; /*status array used in the Dirac inversion*/
@@ -2135,6 +2222,10 @@ static void correlators(void)
    spinor_dble *xi_B; /*xi_B as in the documentation*/
    spinor_dble *source_spinor; /*spinor used as source for the Dirac equation, inverting it zeta and xi can be found*/
 
+   spinor_dble *G1_g5_xi_A; /*spinor that will be set to be GAMMA_1 gamma5 xi_A*/
+   spinor_dble *G2_g5_xi_B; /*spinor that will be set to be GAMMA_2 gamma5 xi_B*/
+
+
    complex_dble tmp1, tmp2; /*temporary complex variables used to compute the values of the correlators*/
 
    /** allocation of the spinor fields **/
@@ -2142,22 +2233,25 @@ static void correlators(void)
    /*the spinor fields needed for the computation are here allocated,
    then the correct memory allocation is checked*/
 
-   wsd=reserve_wsd(2*nnoise+2+1); /*a workspace with 2xnnoise+2+2 spinor (double) fields is allocated*/
+   wsd=reserve_wsd(2*nnoise+2+1+2); /*a workspace with 2xnnoise+2+2 spinor (double) fields is allocated*/
 
    zeta_B=wsd[0]; /*the first array (field) in wsd is assigned to zeta_B*/
    xi_B=wsd[1]; /*the second array (field) in wsd is assigned to xi_B*/
 
    source_spinor=wsd[2]; /*the third array (field) in wsd is assigned to source_spinor*/
 
+   G1_g5_xi_A=wsd[3]; /*fourth array (field) assigned to G1_g5_xi_A*/
+   G2_g5_xi_B=wsd[4]; /*fifth array (field) assigned to G1_g5_xi_A*/
+
    zeta_A=malloc(nnoise*sizeof(spinor_dble*)); /*allocation of nnoise spinors for zeta_A (why needed ?? )*/
    xi_A=malloc(nnoise*sizeof(spinor_dble*)); /*allocation of nnoise spinors for xi_A (why needed ?? )*/
-   error((zeta_A==NULL)||(xi_A==NULL),1,"correlators [deltaF2_4fop_3PointFunc.c]","Out of memory"); /*check on successful allocation*/
+   error((zeta_A==NULL)||(xi_A==NULL),1,"correlators [odd_df2_4fop.c]","Out of memory"); /*check on successful allocation*/
 
    /*zeta_A and xi_A are now set to be the remaining spinors already reserved in wsd*/
    for (inoise_A=0;inoise_A<nnoise;inoise_A++)
    {
-      zeta_A[inoise_A]=wsd[3+2*inoise_A];
-      xi_A[inoise_A]=wsd[3+2*inoise_A+1];
+      zeta_A[inoise_A]=wsd[5+2*inoise_A];
+      xi_A[inoise_A]=wsd[5+2*inoise_A+1];
    }
 
    /*why is the zeta_A and xi_A allocation needed (??)
@@ -2171,7 +2265,7 @@ static void correlators(void)
 
    /** initialization of the correlators (tmp counterpars used by local processes) **/
 
-   for (l=0;l<nnoise*nnoise*ncorr*tvals;l++)
+   for (l=0;l<nnoise*nnoise*ncorr*tvals*noperator;l++)
    {
       data.corrConn_tmp[l].re=0.0;
       data.corrConn_tmp[l].im=0.0;
@@ -2232,7 +2326,7 @@ static void correlators(void)
 
          /*then since what matters is GAMMA_1^dag gamma5 xi_A that is what we store inside the array xi_A*/
 
-         mul_GAMMAdag_g5(xi_A[inoise_A],type1[icorr],xi_A[inoise_A]); /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
+         /*mul_GAMMAdag_g5(xi_A[inoise_A],type1[icorr],xi_A[inoise_A]);*/ /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
 
       } /*end of noise loop, nnoise zeta_A and xi_A produced*/
 
@@ -2272,7 +2366,7 @@ static void correlators(void)
 
          solve_dirac(props4[icorr], source_spinor, xi_B,stat); /*xi_B = (D_3 +i mu_3 gamma5)^-1 source_spinor */
 
-         mul_GAMMAdag_g5(xi_B,type2[icorr],xi_B); /*xi_B set to be GAMMA_2^dag gamma5 xi_B*/
+         /*mul_GAMMAdag_g5(xi_B,type2[icorr],xi_B);*/ /*xi_B set to be GAMMA_2^dag gamma5 xi_B*/
 
          /*now that we have xi_B and zeta_B we loop over all the xi_A and zeta_A already computed and then
          compute nnoise x nnoise correlators given by all the combination of xi_A,zeta_A and xi_B,zeta_B*/
@@ -2280,47 +2374,69 @@ static void correlators(void)
          for (inoise_A=0;inoise_A<nnoise;inoise_A++)
          {
 
-            /*loop over the space time to compute the correlators*/
+            /*loop over the 5 odd 4f operators*/
 
-            for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+            for (iop=0;iop<noperator;iop++)
             {
-               /*code optimization that can be made here:
-                  int temp_index = y0*L1*L2*L3;
-                  int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
-               */
-            
-               for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+               
+               /*loop over the pieces to be summed over in each operator*/
+
+               for (ipiece=0;ipiece<operator_info[iop].ngammas;ipiece++)
                {
-                  iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
+                  /*computation*/
 
-                  /** Computation of Disconnected Part **/
+                  /*each piece of the sum has its own GAMMA1 and GAMMA2, so first we compute the following*/
 
-                  /*first we compute in the given space-time point the two pieces appearing in the disconnected correlator*/
-                  tmp1 = spinor_prod_dble(1,0,xi_A[inoise_A]+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_A*/
-                  tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_B+iy);  /*tmp2 = ( GAMMA_2^dag g5 xi_B )^dag zeta_B*/
-                  /*code optimization: this tmp2 could be brought outside the noise_A loop*/
+                  mul_GAMMAdag_g5(xi_A[inoise_A],operator_info[iop].type1[ipiece],G1_g5_xi_A); /*G1_g5_xi_A set to be GAMMA_1^dag gamma5 xi_A*/
 
-                  /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
-                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-                  data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  mul_GAMMAdag_g5(xi_B,operator_info[iop].type2[ipiece],G2_g5_xi_B); /*G2_g5_xi_B set to be GAMMA_2^dag gamma5 xi_B*/
 
-                  /** Computation of Connected Part**/
 
-                  /*first we compute in the given space-time point the two pieces appearing in the connected correlator*/
-                  tmp1 = spinor_prod_dble(1,0,xi_A[inoise_A]+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_B*/
-                  tmp2 = spinor_prod_dble(1,0,xi_B+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
+                  /*loop over the space time to compute the correlators*/
 
-                  /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
-                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += tmp1.re*tmp2.re - tmp1.im*tmp2.im;
-                  data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += tmp1.re*tmp2.im + tmp1.im*tmp2.re;
+                  for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+                  {
+                     /*code optimization that can be made here:
+                        int temp_index = y0*L1*L2*L3;
+                        int temp_data_index = inoise+nnoise*(cpr[0]*L0+y0+file_head.tvals*icorr);
+                     */
+            
+                     for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+                     {
+                        iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
 
-                  /*the array with the correlator is indexed in the following way:
-                  data.corr[inoise_A,inoise_B,t,icorr]
-                  so that for each correlator, and at each time, nnoise squared configurations are saveds*/
+                        /** Computation of Disconnected Part **/
 
-               } /*end space loop*/
+                        /*first we compute in the given space-time point the two pieces appearing in the disconnected correlator*/
+                        tmp1 = spinor_prod_dble(1,0,G1_g5_xi_A+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_A*/
+                        tmp2 = spinor_prod_dble(1,0,G2_g5_xi_B+iy,zeta_B+iy);  /*tmp2 = ( GAMMA_2^dag g5 xi_B )^dag zeta_B*/
+                        /*code optimization: this tmp2 could be brought outside the noise_A loop*/
 
-            } /*end y0 loop*/
+                        /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
+                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
+                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
+
+                        /** Computation of Connected Part**/
+
+                        /*first we compute in the given space-time point the two pieces appearing in the connected correlator*/
+                        tmp1 = spinor_prod_dble(1,0,G1_g5_xi_A+iy,zeta_B+iy);  /*tmp1 = ( GAMMA_1^dag g5 xi_A )^dag zeta_B*/
+                        tmp2 = spinor_prod_dble(1,0,G2_g5_xi_B+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
+
+                        /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
+                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(iop + noperator*(cpr[0]*L0+y0+tvals*icorr)))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
+                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(iop + noperator*(cpr[0]*L0+y0+tvals*icorr)))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
+
+                        /*the array with the correlator is indexed in the following way:
+                        data.corr[inoise_A,inoise_B,t,iop, icorr]
+                        so that for each correlator, for each of the 5 odd 4f operators, and at each time, nnoise squared configurations are saved*/
+
+                     } /*end space loop*/
+
+                  } /*end y0 loop*/
+
+               }/*end of sum over pieces in each operator*/
+
+            } /*end of loop over 5 different operators*/
 
          } /*end of A noise loop*/
 
@@ -2334,8 +2450,8 @@ static void correlators(void)
    combined (summed, since MPI_SUM) into data.corr, that hence now stores the
    complete results of all the correlators*/
 
-   MPI_Allreduce(data.corrConn_tmp,data.corrConn,nnoise*nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
-   MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,nnoise*nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrConn_tmp,data.corrConn,nnoise*nnoise*ncorr*tvals*noperator*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,nnoise*nnoise*ncorr*tvals*noperator*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
 
    /** memory deallocation**/
 
@@ -2413,6 +2529,8 @@ int main(int argc,char *argv[])
    check_files(); /*check compatibility with .dat and .log files already written*/
    print_info(); /*write all the variables and parameters of the simulation to the .log file*/
    dfl=dfl_parms(); /*get the parameters of the deflation subspace from global structure*/
+
+   init_4foperators(); /*initialization of the gamma structure of the operators VA, AV, SP, PS, TT~*/
 
    geometry(); /*compute global arrays related to MPI process grid and to indexes of lattice grid*/
    init_rng(); /*initialization of the random number generator*/

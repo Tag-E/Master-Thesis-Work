@@ -3,8 +3,8 @@
 ######################################################
 
 [Run name]
-name         deltaF_prova6
-output       deltaF_prova6      # optional
+name         deltaF_prova9
+output       deltaF_prova9      # optional
 
 
 [Directories]                     # as in openQCD            

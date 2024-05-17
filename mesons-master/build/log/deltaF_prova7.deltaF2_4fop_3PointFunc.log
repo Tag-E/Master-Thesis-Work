@@ -1,0 +1,105 @@
+
+Computation of meson correlators with insertion of a deltaF=2 4 fermions operator
+--------------------------------
+
+cnfg   base name: deltaF_prova7
+output base name: deltaF_prova7
+
+openQCD version: openQCD-1.2, meson version: mesons v1.2rc
+The machine is little endian
+Configurations are read in exported file format
+
+16x8x8x8 lattice, 8x8x8x8 local lattice
+2x1x1x1 process grid, 1x1x1x1 process block size
+Open boundary conditions on the quark fields
+
+Random number generator:
+level = 0, seed = 73099
+
+Measurements:
+nprop     = 4
+ncorr     = 2
+nnoise    = 10
+noisetype = U1
+csw       = 1.495100
+cF        = 1.000000
+eoflg     = 0
+
+Propagator 0:
+kappa  = 0.121951
+isp    = 0
+mu     = 0.000000
+
+Propagator 1:
+kappa  = 0.120000
+isp    = 1
+mu     = 0.000000
+
+Propagator 2:
+kappa  = 0.121951
+isp    = 0
+mu     = 0.000000
+
+Propagator 3:
+kappa  = 0.120000
+isp    = 1
+mu     = 0.000000
+
+Correlator 0:
+iprop  = 0 1 2 3
+gamma_A_B   = 5 5
+gamma_1_2   = 10 1
+x0     = 1
+z0     = 8
+
+Correlator 1:
+iprop  = 0 2 1 3
+gamma_A_B   = 5 5
+gamma_1_2   = 10 5
+x0     = 1
+z0     = 4
+
+Solver 0:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 5
+nmx = 128
+res = 1.0e-12
+
+Solver 1:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 6
+nmx = 128
+res = 1.0e-12
+
+SAP block size:
+bs = 4 4 4 4
+
+Deflation subspace:
+bs = 4 4 4 4
+Ns = 20
+
+Deflation projection:
+nkv = 16
+nmx = 256
+res = 1.0e-02
+
+Deflation subspace generation:
+kappa = 0.120000
+mu = 0.01
+ninv = 10
+nmr = 4
+ncy = 4
+
+Configurations no 1 -> 2 in steps of 1
+
+
+Error in set_cpr [geometry.c]:
+Actual number of processes does not match NPROC
+Program aborted
+

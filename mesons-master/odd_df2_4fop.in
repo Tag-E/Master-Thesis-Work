@@ -3,8 +3,8 @@
 ######################################################
 
 [Run name]
-name         deltaF_prova6
-output       deltaF_prova6      # optional
+name         odd_prova7
+output       odd_prova7      # optional
 
 
 [Directories]                     # as in openQCD            
@@ -68,10 +68,15 @@ mus          0.0
 ######## section, ncorr in total           ###########
 ######################################################
 
-[Correlator]
+[Correlator 0]
 iprop        0 1 2 3            # quark lines
 gamma_A_B    G5 G5              # Dirac structures for the two mesons
-gamma_1_2    G0G5 G1            # Dirca structures inside the 4 fermion operator
+x0           1                  # source time slice 1
+z0           8                  # source time slice 2
+
+[Correlator 1]
+iprop        0 1 2 3            # quark lines
+gamma_A_B    G5 G5              # Dirac structures for the two mesons
 x0           1                  # source time slice 1
 z0           8                  # source time slice 2
 

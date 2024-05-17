@@ -18,8 +18,8 @@
 ////////////////////////
 ////device dependent////
 //make sure that NPROC0*...*NPROC3 = number of processor available on your device// 
-#define NPROC0 2
-#define NPROC1 1
+#define NPROC0 3
+#define NPROC1 2
 #define NPROC2 1
 #define NPROC3 1
 ///////////////////////

@@ -39,7 +39,7 @@ CFLAGS = -std=c89 -pedantic -fstrict-aliasing -Wall -Wno-long-long -Wstrict-prot
 
 
 #MAIN = tm_mesons sflds_tests
-MAIN = deltaF2_4fop_3PointFunc #4fop_tm_mesons tm_mesons sflds_tests
+MAIN = odd_df2_4fop #deltaF2_4fop_3PointFunc 4fop_tm_mesons tm_mesons sflds_tests
 
 ARCHIVE = archive sarchive
 
