@@ -87,16 +87,17 @@
       (n)=(m)
 
 
+/*noise type for the creation of spinors with just one component filled*/
+#define ONE_COMPONENT 3
 
-/*******************************************************************************/
-/******************* Declaration of Global Variables ***************************/
-/*******************************************************************************/
-
-/*** constants ***/
 
 /*number of operators to be computed for each correlator (VA, AV, PS, SP TT~)*/
 #define noperator 5
 
+
+/*******************************************************************************/
+/******************* Declaration of Global Variables ***************************/
+/*******************************************************************************/
 
 /*** declaration of custom made structures ***/
 
@@ -490,7 +491,7 @@ static void read_lat_parms(void)
       error_root((eoflg<0)||(eoflg>1),1,"read_lat_parms [odd_df2_4fop.c]",
 		 "Specified eoflg must be 0,1");
 
-      /*noise_type must be either U1, Z2 or GAUSS*/
+      /*noise_type must be either U1, Z2 or GAUSS or ONE_COMPONENT*/
       noisetype=-1;
       if(strcmp(tmpstring,"Z2")==0)
          noisetype=Z2_NOISE;
@@ -498,6 +499,8 @@ static void read_lat_parms(void)
          noisetype=GAUSS_NOISE;
       if(strcmp(tmpstring,"U1")==0)
          noisetype=U1_NOISE;
+      if(strcmp(tmpstring,"ONE_COMPONENT")==0)
+         noisetype=ONE_COMPONENT;
       error_root(noisetype==-1,1,"read_lat_parms [mesons.c]",
                  "Unknown noise type");
    }
@@ -1531,6 +1534,8 @@ static void print_info(void)
             printf("noisetype = GAUSS\n");
          if (noisetype==U1_NOISE)
             printf("noisetype = U1\n");
+         if (noisetype==ONE_COMPONENT)
+            printf("noisetype = ONE_COMPONENT\n");
          printf("csw       = %.6f\n",lat.csw);
          printf("cF        = %.6f\n",lat.cF);
 	      printf("eoflg     = %i\n\n",tm.eoflg); /*print the twisted mass flag eoflag to the .log file*/
@@ -1860,6 +1865,74 @@ static void check_endflag(int *iend)
 
 /*** computation functions ***/
 
+/*function used to set to 1 only one component of a spinor*/
+void fill_one_component(spinor_dble *sd)
+{
+   static int counter = 0; /*counter used to discriminate which component to fill*/
+   const int max_counter = 12; /*the maximum number of components is 12*/
+
+   /*each time the fuction is called counter is increased by 1, from 0 up to 11, then it starts
+   again from 0, and depending on counter a different component is initialized*/
+
+   /*
+   printf("\n counter = %i \n",counter);
+   fflush(flog);
+   */
+
+   if (counter==0)
+   {
+      (*sd).c1.c1.re=1.0; /*dirac 1, color 1 set to 1.0*/
+   }
+   else if (counter==1)
+   {
+      (*sd).c1.c2.re=1.0; /*dirac 1, color 2 set to 1.0*/
+   }
+   else if (counter==2)
+   {
+      (*sd).c1.c3.re=1.0; /*dirac 1, color 3 set to 1.0*/
+   }
+   else if (counter==3)
+   {
+      (*sd).c2.c1.re=1.0; /*dirac 2, color 1 set to 1.0*/
+   }
+   else if (counter==4)
+   {
+      (*sd).c2.c2.re=1.0; /*dirac 2, color 2 set to 1.0*/
+   }
+   else if (counter==5)
+   {
+      (*sd).c2.c3.re=1.0; /*dirac 2, color 3 set to 1.0*/
+   }
+   else if (counter==6)
+   {
+      (*sd).c3.c1.re=1.0; /*dirac 3, color 1 set to 1.0*/
+   }
+   else if (counter==7)
+   {
+      (*sd).c3.c2.re=1.0; /*dirac 3, color 2 set to 1.0*/
+   }
+   else if (counter==8)
+   {
+      (*sd).c3.c3.re=1.0; /*dirac 3, color 3 set to 1.0*/
+   }
+   else if (counter==9)
+   {
+      (*sd).c4.c1.re=1.0; /*dirac 4, color 1 set to 1.0*/
+   }
+   else if (counter==10)
+   {
+      (*sd).c4.c2.re=1.0; /*dirac 4, color 2 set to 1.0*/
+   }
+   else if (counter==11)
+   {
+      (*sd).c4.c3.re=1.0; /*dirac 4, color 3 set to 1.0*/
+   }
+
+   counter = (counter+1)%max_counter;
+
+}
+
+
 /*function used to create a random spinor:
 the array eta is first set to 0 on the whole lattice, then at the timeslice x0 
 it gets filled with random doubles according to the random method specified (globally)
@@ -1892,7 +1965,7 @@ static void random_spinor(spinor_dble *eta, int x0)
             random_Z2_sd(1,eta+ix); /*random Z2 generation of the spinor entry (just 1) at position ix*/
          }
       }
-      else if (noisetype==GAUSS_NOISE)
+      else if (noisetype==GAUSS_NOISE) /*if the random generation is gaussian*/
       {
          for (iy=0;iy<(L1*L2*L3);iy++) /*loop over the timeslice*/
          {
@@ -1900,12 +1973,21 @@ static void random_spinor(spinor_dble *eta, int x0)
             random_sd(1,eta+ix,1.0); /*random gaussian generation of the spinor entry (just 1) at position ix*/
          }
       }
-      else if (noisetype==U1_NOISE)
+      else if (noisetype==U1_NOISE) /*if the random generation U1*/
       {
          for (iy=0;iy<(L1*L2*L3);iy++) /*loop over the timeslice*/
          {
             ix=ipt[iy+y0*L1*L2*L3]; /*index of the point on the local lattice*/
             random_U1_sd(1,eta+ix); /*random U1 generation of the spinor entry (just 1) at position ix*/
+         }
+      }
+      else if (noisetype==ONE_COMPONENT) /*if only one component of the spinor has to be filled*/
+      {
+         if ( (cpr[1]==0) && (cpr[2]==0) && (cpr[3]==0) ) /*the component to be filled is on the process timeslice with 0 space components*/
+         {
+            iy=0;
+            ix=ipt[iy+y0*L1*L2*L3];
+            fill_one_component(eta+ix);
          }
       }
 

@@ -3,8 +3,8 @@
 ######################################################
 
 [Run name]
-name         odd_prova7
-output       odd_prova7      # optional
+name         odd_prova10
+output       odd_prova10      # optional
 
 
 [Directories]                     # as in openQCD            
@@ -30,8 +30,8 @@ seed         73099
 [Measurements]
 nprop        4                    # number of different quark lines
 ncorr        2                    # number of different correlators
-nnoise       10                  # number of noise vectors / conf
-noise_type   U1                   # noise type: U1 or Z2 or GAUSS
+nnoise       12                  # number of noise vectors / conf
+noise_type   ONE_COMPONENT       # noise type: U1 or Z2 or GAUSS or ONE_COMPONENT
 csw          1.4951               # Dirac operator options 
 cF           1.0                  # common to all quark lines
 eoflg        0                    # twisted mass flag (even-odd flag)
