@@ -66,6 +66,8 @@
 #include "version.h"
 #include "global.h"
 #include "mesons.h"
+#include "su3fcts.h" /*for the random_su3_dble() function*/
+#include "uflds.h" /*for the udfld() function*/
 
 
 
@@ -183,6 +185,9 @@ static int step; /*step used in the scanning of the gauge configurations*/
 static int level; /*parameter of the random number generator*/
 static int seed; /*seed of the random number generator*/
 
+static int random_conf; /*if set to 1 the gauge configurations are randomly generated*/
+static int check_gauge_inv; /*if set to 1 each gauge configuration is used again for computation after a gauge transformation*/
+
 static char nbase[NAME_SIZE]; /*name of the run specified in the .in file (used to set the name of the cnfg file)*/
 static char outbase[NAME_SIZE]; /*name of the output file specified in the .in file*/
 
@@ -216,6 +221,12 @@ static int *typeB; /*array containing the dirac structures GAMMA_B (second meson
 
 static int *x0s; /*array containing the time slice of the first source (x0) of each correlator*/
 static int *z0s; /*array containing the time slice of the second source (z0) of each correlator*/
+
+
+/*** variables used to gauge transform the gauge configuration ***/
+static su3_dble *g; /*su3 matrix containing the random transformation to be applied on the gauge configuration*/
+static su3_dble *gbuf; /*auxiliary su3 matrix used*/
+static int nfc[8],ofs[8]; /*arrays used for random g generation*/
 
 
 /*** variables with the directories' names (paths) ***/
@@ -477,6 +488,10 @@ static void read_lat_parms(void)
       read_line("cF","%lf",&cF); /*cF coefficient read from input file*/
       read_line("eoflg","%d",&eoflg); /*eoflg read from input file*/
 
+      read_line("random_conf","%d",&random_conf); /*random_conf read from input file*/
+      read_line("check_gauge_inv","%d",&check_gauge_inv); /*check_gauge_inv read from input file*/
+
+
       /*check on the validity of the parameters read from input file*/
 
       /*nprop, ncorr and nnoise must be positive integers*/
@@ -490,6 +505,12 @@ static void read_lat_parms(void)
       /*eoflg must be either 0 or 1*/
       error_root((eoflg<0)||(eoflg>1),1,"read_lat_parms [odd_df2_4fop.c]",
 		 "Specified eoflg must be 0,1");
+
+      /*random_conf and check_gauge_inv must be either 0 or 1*/
+      error_root((random_conf<0)||(random_conf>1),1,"read_lat_parms [odd_df2_4fop.c]",
+		 "Specified random_conf must be 0,1");
+       error_root((check_gauge_inv<0)||(check_gauge_inv>1),1,"read_lat_parms [odd_df2_4fop.c]",
+		 "Specified check_gauge_inv must be 0,1");
 
       /*noise_type must be either U1, Z2 or GAUSS or ONE_COMPONENT*/
       noisetype=-1;
@@ -515,6 +536,9 @@ static void read_lat_parms(void)
    MPI_Bcast(&csw,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(&cF,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
    MPI_Bcast(&eoflg,1,MPI_INT,0,MPI_COMM_WORLD);
+
+   MPI_Bcast(&random_conf,1,MPI_INT,0,MPI_COMM_WORLD);
+   MPI_Bcast(&check_gauge_inv,1,MPI_INT,0,MPI_COMM_WORLD);
 
    /*memory allocation for all the parameters needed
    by the various propagators and correlator*/
@@ -1540,6 +1564,9 @@ static void print_info(void)
          printf("cF        = %.6f\n",lat.cF);
 	      printf("eoflg     = %i\n\n",tm.eoflg); /*print the twisted mass flag eoflag to the .log file*/
 
+         printf("random_conf     = %i\n",random_conf);
+         printf("check_gauge_inv = %i\n\n",check_gauge_inv);
+
          for (i=0; i<nprop; i++)
          {
             printf("Propagator %i:\n",i);
@@ -1865,7 +1892,8 @@ static void check_endflag(int *iend)
 
 /*** computation functions ***/
 
-/*function used to set to 1 only one component of a spinor*/
+/*function used to set to 1 only one component of a spinor
+(function called by the random_spinor function)*/
 void fill_one_component(spinor_dble *sd)
 {
    static int counter = 0; /*counter used to discriminate which component to fill*/
@@ -2574,6 +2602,170 @@ static void set_data(int nc)
 }
 
 
+/*** function transforming the gauge configurations ***/
+
+
+/*function used to allocate g
+(function called by the main)*/
+static void allocate_g(void)
+{
+   g=amalloc(NSPIN*sizeof(su3_dble),4);
+
+   if (BNDRY>0)
+      gbuf=amalloc((BNDRY/2)*sizeof(su3_dble),4);
+
+   error((g==NULL)||((BNDRY>0)&&(gbuf==NULL)),1,"allocate_g [odd_df2_4fop.c]",
+         "Unable to allocate auxiliary arrays");
+}
+
+
+/*(function called by random_g)*/
+static void pack_gbuf(void)
+{
+   int n,ix,iy,io;
+
+   nfc[0]=FACE0/2;
+   nfc[1]=FACE0/2;
+   nfc[2]=FACE1/2;
+   nfc[3]=FACE1/2;
+   nfc[4]=FACE2/2;
+   nfc[5]=FACE2/2;
+   nfc[6]=FACE3/2;
+   nfc[7]=FACE3/2;
+
+   ofs[0]=0;
+   ofs[1]=ofs[0]+nfc[0];
+   ofs[2]=ofs[1]+nfc[1];
+   ofs[3]=ofs[2]+nfc[2];
+   ofs[4]=ofs[3]+nfc[3];
+   ofs[5]=ofs[4]+nfc[4];
+   ofs[6]=ofs[5]+nfc[5];
+   ofs[7]=ofs[6]+nfc[6];
+
+   for (n=0;n<8;n++)
+   {
+      io=ofs[n];
+
+      for (ix=0;ix<nfc[n];ix++)
+      {
+         iy=map[io+ix];
+         gbuf[io+ix]=g[iy];
+      }
+   }
+}
+
+
+/*(function called by random_g)*/
+static void send_gbuf(void)
+{
+   int n,mu,np,saddr,raddr;
+   int nbf,tag;
+   su3_dble *sbuf,*rbuf;
+   MPI_Status stat;
+
+   for (n=0;n<8;n++)
+   {
+      nbf=18*nfc[n];
+
+      if (nbf>0)
+      {
+         tag=mpi_tag();
+         mu=n/2;
+         np=cpr[mu];
+
+         if (n==(2*mu))
+         {
+            saddr=npr[n+1];
+            raddr=npr[n];
+         }
+         else
+         {
+            saddr=npr[n-1];
+            raddr=npr[n];
+         }
+
+         sbuf=gbuf+ofs[n];
+         rbuf=g+ofs[n]+VOLUME;
+
+         if ((np|0x1)!=np)
+         {
+            MPI_Send((double*)(sbuf),nbf,MPI_DOUBLE,saddr,tag,MPI_COMM_WORLD);
+            MPI_Recv((double*)(rbuf),nbf,MPI_DOUBLE,raddr,tag,MPI_COMM_WORLD,
+                     &stat);
+         }
+         else
+         {
+            MPI_Recv((double*)(rbuf),nbf,MPI_DOUBLE,raddr,tag,MPI_COMM_WORLD,
+                     &stat);
+            MPI_Send((double*)(sbuf),nbf,MPI_DOUBLE,saddr,tag,MPI_COMM_WORLD);
+         }
+      }
+   }
+}
+
+
+/*function used to create a random su3 transformation g to be applied on the gauge configuration
+(function called by the main)*/
+static void random_g(void)
+{
+   su3_dble *gx,*gm;
+
+   gm=g+VOLUME;
+
+   for (gx=g;gx<gm;gx++)
+      random_su3_dble(gx);
+
+   if (BNDRY>0)
+   {
+      pack_gbuf();
+      send_gbuf();
+   }
+}
+
+
+/*function used to perform a random gauge transformation on the current gauge configuration
+(function called by the main)*/
+static void transform_ud(void)
+{
+
+   /*(function taken by openQCD-1.2 > devel > dirac > check4.c -> transform_ud)*/
+
+   int ix,iy,mu;
+   su3_dble *ub,u,v,w;
+   su3_dble gx,gxi,gy,gyi;
+
+   ub=udfld();
+   
+   for (ix=(VOLUME/2);ix<VOLUME;ix++)
+   {
+      gx=g[ix];
+
+      for (mu=0;mu<4;mu++)
+      {
+         iy=iup[ix][mu];
+         gy=g[iy];
+         u=ub[2*mu];
+         _su3_dagger(gyi,gy);
+         _su3_times_su3(v,u,gyi);
+         _su3_times_su3(w,gx,v);
+         ub[2*mu]=w;
+
+         iy=idn[ix][mu];
+         gy=g[iy];
+         u=ub[2*mu+1];
+         _su3_dagger(gxi,gx);
+         _su3_times_su3(v,u,gxi);
+         _su3_times_su3(w,gy,v);
+         ub[2*mu+1]=w;
+      }
+
+      ub+=8;
+   }
+
+   set_flags(UPDATED_UD);
+}
+
+
 
 /*******************************************************************************/
 /***************************** Main of the Program *****************************/
@@ -2623,6 +2815,10 @@ int main(int argc,char *argv[])
    alloc_wv(nwv); /*allocates a workspace of nws single-precision vector fields*/
    alloc_wvd(nwvd); /*allocates a workspace of nwsd double-precision vector fields*/
 
+   /*if the gauge invariance check is required then g is allocated*/
+   if (check_gauge_inv==1)
+      allocate_g();
+
    /** loop over the gauge field configurations **/
 
    iend=0; /*end flag initialized to 0 (= flag not set)*/
@@ -2651,6 +2847,12 @@ int main(int argc,char *argv[])
          /*import_cnfg(cnfg_file);*/ /*reads the configurations from the cnfg_file, saves them on global structure*/
       }
 
+      /*if the random gauge configuration flag is set then a random configuration is used*/
+      if(random_conf==1) /*if the flag is set...*/
+      {
+         random_ud(); /*...the gauge configuration is chesen randomly (previous reading gets overwritten)*/
+      }
+
       /*the deflation subspace is generated*/
       if (dfl.Ns) /*if the number of deflation mode is different from 0...*/
       {
@@ -2659,7 +2861,7 @@ int main(int argc,char *argv[])
          /*initialize deflation subspace and its compute basis vectors,
          an error is raised if the operation fails*/
          dfl_modes(status);
-         error_root(status[0]<0,1,"main [mesons.c]",
+         error_root(status[0]<0,1,"main [odd_df2_4fop.c]",
                     "Deflation subspace generation failed (status = %d)",
                     status[0]);
 
@@ -2695,6 +2897,47 @@ int main(int argc,char *argv[])
          printf("(average = %.2e sec)\n\n",
                 wtavg/(double)((nc-first)/step+1));
       }
+
+
+      /*then if the check_invariance flag has been set the computation is repeated with a gauge transformed configuraiton*/
+
+      if (check_gauge_inv==1) /*if the flag is set...*/
+      {
+         if (my_rank==0)
+            printf("Gauge transforming configuration no %d and repeating the computation\n",nc);
+
+         MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
+         wt1=MPI_Wtime(); /*time measured before the nc-th configuration is processed*/
+
+         /*the deflation subspace is generated*/
+         if (dfl.Ns) /*if the number of deflation mode is different from 0...*/
+         {
+            /*... the deflation subspace is initialized*/
+
+            /*initialize deflation subspace and its compute basis vectors,
+            an error is raised if the operation fails*/
+            dfl_modes(status);
+            error_root(status[0]<0,1,"main [odd_df2_4fop.c]",
+                       "Deflation subspace generation failed (status = %d)",
+                       status[0]);
+
+            /*on process 0 the (succesful) status of the deflation subspace generation is written to the .log file*/
+            if (my_rank==0)
+               printf("Deflation subspace generation: status = %d\n",status[0]);
+         }
+
+         random_g(); /*... we choose randomly the transformation to be applied on the gauge configuration*/
+         transform_ud(); /*...the gauge configuration gets gauge transformed (according to g, chosen randomly)*/
+         set_data(nc); /*... the computation is repeated*/
+         write_data(); /*... the data is saved again*/
+
+         MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
+         wt2=MPI_Wtime();  /*time measured after the nc-th configuration is processed*/
+
+         if (my_rank==0)
+            printf("Configuration no %d (gauge transformed) fully processed in %.2e sec \n", nc,wt2-wt1);
+      }
+      
 
       /*once the correlator corresponding to the current gauge configuration has been computed
       the program checks if its execution has to be terminated early by looking for the endflag
