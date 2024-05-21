@@ -31,5 +31,7 @@ build/solverPrec
 oB7/
 q.log
 todo.txt
-xsf-stuff/
+../xsf-stuff/
+python_analysis/plots
+python_analysis/*.png
 

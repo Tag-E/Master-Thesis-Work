@@ -1188,7 +1188,12 @@ static void write_file_head(void)
       bswap_int(1,istd);
    iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
-   error_root(iw!=4,1,"write_file_head [odd_df2_4fop.c]",
+   istd[0]=(stdint_t)(check_gauge_inv);
+   if (endian==BIG_ENDIAN)
+      bswap_int(1,istd);
+   iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
+
+   error_root(iw!=5,1,"write_file_head [odd_df2_4fop.c]",
               "Incorrect write count");
 
    
@@ -2523,8 +2528,8 @@ static void correlators(void)
                         /*code optimization: this tmp2 could be brought outside the noise_A loop*/
 
                         /*then sum their product to the disconnected correlator at y0 (tmp because is only on the local process)*/
-                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
-                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0+tvals*icorr))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
+                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0 + tvals*(iop + noperator*icorr)))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
+                        data.corrDisc_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0 + tvals*(iop + noperator*icorr)))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
 
                         /** Computation of Connected Part**/
 
@@ -2533,8 +2538,8 @@ static void correlators(void)
                         tmp2 = spinor_prod_dble(1,0,G2_g5_xi_B+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_2^dag g5 xi_B )^dag zeta_A*/
 
                         /*then sum their product to the connected correlator at y0 (tmp because is only on the local process)*/
-                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(iop + noperator*(cpr[0]*L0+y0+tvals*icorr)))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
-                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(iop + noperator*(cpr[0]*L0+y0+tvals*icorr)))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
+                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0 + tvals*(iop + noperator*icorr)))].re += (tmp1.re*tmp2.re - tmp1.im*tmp2.im) * operator_info[iop].weights[ipiece];
+                        data.corrConn_tmp[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0 + tvals*(iop + noperator*icorr)))].im += (tmp1.re*tmp2.im + tmp1.im*tmp2.re) * operator_info[iop].weights[ipiece];
 
                         /*the array with the correlator is indexed in the following way:
                         data.corr[inoise_A,inoise_B,t,iop, icorr]
