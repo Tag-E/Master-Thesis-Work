@@ -524,6 +524,10 @@ static void read_lat_parms(void)
          noisetype=ONE_COMPONENT;
       error_root(noisetype==-1,1,"read_lat_parms [mesons.c]",
                  "Unknown noise type");
+
+      /*if noisetype is one_component but nnoise!=12 an error is raised*/
+      error_root((nnoise!=12)&&(strcmp(tmpstring,"ONE_COMPONENT")==0),1,"read_lat_parms [odd_df2_4fop.c]",
+                 "If the noise_type is ONE_COMPONENT then the number of noise vectors must be 12");
    }
 
    /*broadcast of parameters read on process 0 to
@@ -1917,8 +1921,6 @@ void fill_one_component(spinor_dble *sd)
    fflush(flog);
    */
 
-  /*CHECK --->  NNOISE=12 !!!!!!!!*/
-
    if (counter==0)
    {
       (*sd).c1.c1.re=1.0; /*dirac 1, color 1 set to 1.0*/
@@ -2034,12 +2036,6 @@ static void random_spinor(spinor_dble *eta, int x0)
       /*(the above random generations are done entry by entry,
       they can't be done in one shot like random_sd(L1*L2*L3, eta)
       because the entries are on a timeslice, so they are not contiguous)*/
-
-      /*add another if with:
-      cpr[1]=cpr[2]=cpr[3]=0
-      iy = 0
-      y0 lo stesso
-      poi inizializzaione secondo indici di dirac*/
 
    }
 
