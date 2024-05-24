@@ -51,17 +51,19 @@ nnoise=0
 tvals=0
 noise_type=0
 check_gauge_inv=0
+random_conf=0
 
 
 ##### function printing info to terminal #####
 def print_info():
     #Header print
-    print("[File Header]\n")
+    print("\n[File Header]\n")
     print(f"- ncorr           = {ncorr}\n")
     print(f"- nnoise          = {nnoise}\n")
     print(f"- tvals           = {tvals}\n")
     print(f"- noise_type      = {noise_dict[noise_type]}\n")
     print(f"- check_gauge_inv = {check_gauge_inv}\n")
+    print(f"- random_conf     = {random_conf}\n\n")
 
     #Correlators Header print
     for i in range(ncorr):
@@ -123,11 +125,16 @@ def plotCorr(confNumb,corrNumb,name,save=True,show=False):
         #take average over noise
         avg_list = [corr.mean(axis=-1).mean(axis=-1) for corr in corr_list]
         #take modulus
-        Gt_list = [np.abs(avg) for avg in avg_list]
+        #Gt_list = [np.abs(avg) for avg in avg_list]
+        Gt_list_re = [avg.real for avg in avg_list]
+        Gt_list_im = [avg.imag for avg in avg_list]
 
         #plot 3 pieces
-        for ipiece,Gt in enumerate(Gt_list):
-            ax_list[iop].plot(times,Gt,'-o',label=corr_lab[ipiece],color=corr_colors[ipiece],markersize=10,linewidth=0.5)
+        #for ipiece,Gt in enumerate(Gt_list):
+            #ax_list[iop].plot(times,Gt,'-o',label=corr_lab[ipiece],color=corr_colors[ipiece],markersize=10,linewidth=0.5)
+        for ipiece,Gt in enumerate(Gt_list_re):
+            #ax_list[iop].plot(times,Gt,'-*',label=corr_lab[ipiece]+" re",color=corr_colors[ipiece],markersize=10,linewidth=0.5)
+            ax_list[iop].plot(times,Gt_list_im[ipiece],'-o',label=corr_lab[ipiece]+" im",color=corr_colors[ipiece],markersize=10,linewidth=0.5)
 
         #enable grid
         ax_list[iop].grid()
@@ -187,6 +194,7 @@ def plotCorr(confNumb,corrNumb,name,save=True,show=False):
          '           ',
         r'$N_{NOISE}$=%d' % nnoise,
          'Noise Type=%s' % noise_dict[noise_type],
+         'Random Conf=%d' % random_conf,
         r'$T$=%d' % tvals))
 
 
@@ -218,7 +226,7 @@ def main():
     #global variables
     global conf_dict,conf_name,fileName,runName
     global k1,k2,k3,k4,mu1,mu2,mu3,mu4,typeA,typeB,x0,z0
-    global ncorr, nnoise, tvals, noise_type, check_gauge_inv
+    global ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf
 
 
     #read log file name from command line
@@ -239,11 +247,11 @@ def main():
     with open(fileName, mode='rb') as file: # b is important -> binary
         fileContent = file.read()
 
-        #header is made up of 5 integers, 5x4=20byte
-        header_size= 5*4
+        #header is made up of 6 integers, 5x4=20byte
+        header_size= 6*4
 
         #first 16 byte are four 4-byte integers
-        ncorr, nnoise, tvals, noise_type, check_gauge_inv = struct.unpack("iiiii", fileContent[:header_size])
+        ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf = struct.unpack("iiiiii", fileContent[:header_size])
 
         #initialization of correlators' variables
         k1=['']*ncorr

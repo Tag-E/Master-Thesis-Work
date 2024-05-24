@@ -3,8 +3,8 @@
 ######################################################
 
 [Run name]
-name         odd_prova21
-output       odd_prova21      # optional
+name         odd_prova35
+output       odd_prova35      # optional
 
 
 [Directories]                     # as in openQCD            
@@ -20,7 +20,7 @@ step         1
 
 [Random number generator]         # as in openQCD
 level        0      
-seed         73099  
+seed         73098  
 
 
 ######################################################
@@ -28,15 +28,16 @@ seed         73099
 ######################################################
 
 [Measurements]
-nprop        4                    # number of different quark lines
+nprop        6                    # number of different quark lines
 ncorr        2                    # number of different correlators
 nnoise       12                  # number of noise vectors / conf
-noise_type   ONE_COMPONENT       # noise type: U1 or Z2 or GAUSS or ONE_COMPONENT
-csw          1.4951               # Dirac operator options 
+noise_type   U1       # noise type: U1 or Z2 or GAUSS or ONE_COMPONENT
+#csw          1.4951               # Dirac operator options
+csw          0.0
 cF           1.0                  # common to all quark lines
 eoflg        0                    # twisted mass flag (even-odd flag)
-random_conf 1                     # when set to 1 generate random (uniformly distibuted) gauge configurations
-check_gauge_inv 1                 # when set to 1 repeat each calculation with gauge transformed configurations
+random_conf 0                     # when set to 1 generate random (uniformly distibuted) gauge configurations
+check_gauge_inv 0                 # when set to 1 repeat each calculation with gauge transformed configurations
 
 
 ######################################################
@@ -64,6 +65,16 @@ kappa        0.12
 isp          1
 mus          0.0
 
+[Propagator 4]
+kappa        0.125
+isp          1
+mus          0.005
+
+[Propagator 5]
+kappa        0.125
+isp          1
+mus          -0.005
+
 
 ######################################################
 ######## For every correlator a Correlator ###########
@@ -71,16 +82,16 @@ mus          0.0
 ######################################################
 
 [Correlator 0]
-iprop        0 1 2 3            # quark lines
+iprop        4 5 4 4            # quark lines
 gamma_A_B    G5 G5              # Dirac structures for the two mesons
 x0           1                  # source time slice 1
-z0           8                  # source time slice 2
+z0           14                  # source time slice 2
 
 [Correlator 1]
-iprop        0 1 2 3            # quark lines
-gamma_A_B    G5 G5              # Dirac structures for the two mesons
+iprop        0 1 3 2            # quark lines
+gamma_A_B    G0G5 G0G5              # Dirac structures for the two mesons
 x0           1                  # source time slice 1
-z0           8                  # source time slice 2
+z0           14                  # source time slice 2
 
 
 

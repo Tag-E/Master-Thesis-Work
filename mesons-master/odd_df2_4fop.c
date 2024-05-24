@@ -1193,7 +1193,12 @@ static void write_file_head(void)
       bswap_int(1,istd);
    iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
-   error_root(iw!=5,1,"write_file_head [odd_df2_4fop.c]",
+   istd[0]=(stdint_t)(random_conf);
+   if (endian==BIG_ENDIAN)
+      bswap_int(1,istd);
+   iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
+
+   error_root(iw!=6,1,"write_file_head [odd_df2_4fop.c]",
               "Incorrect write count");
 
    
@@ -1911,6 +1916,8 @@ void fill_one_component(spinor_dble *sd)
    printf("\n counter = %i \n",counter);
    fflush(flog);
    */
+
+  /*CHECK --->  NNOISE=12 !!!!!!!!*/
 
    if (counter==0)
    {
@@ -2914,6 +2921,9 @@ int main(int argc,char *argv[])
          MPI_Barrier(MPI_COMM_WORLD); /*synchronization between all the MPI processes in the group*/
          wt1=MPI_Wtime(); /*time measured before the nc-th configuration is processed*/
 
+         random_g(); /*... we choose randomly the transformation to be applied on the gauge configuration*/
+         transform_ud(); /*...the gauge configuration gets gauge transformed (according to g, chosen randomly)*/
+
          /*the deflation subspace is generated*/
          if (dfl.Ns) /*if the number of deflation mode is different from 0...*/
          {
@@ -2931,8 +2941,7 @@ int main(int argc,char *argv[])
                printf("Deflation subspace generation: status = %d\n",status[0]);
          }
 
-         random_g(); /*... we choose randomly the transformation to be applied on the gauge configuration*/
-         transform_ud(); /*...the gauge configuration gets gauge transformed (according to g, chosen randomly)*/
+         
          set_data(nc); /*... the computation is repeated*/
          write_data(); /*... the data is saved again*/
 

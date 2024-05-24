@@ -32,6 +32,6 @@ oB7/
 q.log
 todo.txt
 ../xsf-stuff/
-python_analysis/plots
+../python_analysis/plots/*/*
 python_analysis/*.png
 
