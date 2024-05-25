@@ -1,0 +1,273 @@
+
+Computation of meson correlators with insertion of a deltaF=2 4 fermions operator
+--------------------------------
+
+cnfg   base name: odd_prova40
+output base name: odd_prova40
+
+openQCD version: openQCD-1.2, meson version: mesons v1.2rc
+The machine is little endian
+Configurations are read in exported file format
+
+16x16x16x8 lattice, 8x8x8x8 local lattice
+2x2x2x1 process grid, 1x1x1x1 process block size
+Open boundary conditions on the quark fields
+
+Random number generator:
+level = 0, seed = 73098
+
+Measurements:
+nprop     = 6
+ncorr     = 2
+nnoise    = 12
+noisetype = ONE_COMPONENT
+csw       = 0.000000
+cF        = 1.000000
+eoflg     = 0
+
+random_conf     = 0
+check_gauge_inv = 0
+
+Propagator 0:
+kappa  = 0.121951
+isp    = 0
+mu     = 0.000000
+
+Propagator 1:
+kappa  = 0.120000
+isp    = 1
+mu     = 0.000000
+
+Propagator 2:
+kappa  = 0.121951
+isp    = 0
+mu     = 0.000000
+
+Propagator 3:
+kappa  = 0.120000
+isp    = 1
+mu     = 0.000000
+
+Propagator 4:
+kappa  = 0.125000
+isp    = 1
+mu     = 0.005000
+
+Propagator 5:
+kappa  = 0.125000
+isp    = 1
+mu     = -0.005000
+
+Correlator 0:
+iprop  = 4 5 4 4
+gamma_A_B   = 5 5
+x0     = 1
+z0     = 14
+
+Correlator 1:
+iprop  = 0 1 3 2
+gamma_A_B   = 10 10
+x0     = 1
+z0     = 14
+
+Odd DeltaF=2 4 Fermions operators: VA, AV, SP, PS, TT~
+
+Solver 0:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 5
+nmx = 128
+res = 1.0e-12
+
+Solver 1:
+DFL_SAP_GCR solver
+nkv = 8
+isolv = 1
+nmr = 4
+ncy = 6
+nmx = 128
+res = 1.0e-12
+
+SAP block size:
+bs = 4 4 4 4
+
+Deflation subspace:
+bs = 4 4 4 4
+Ns = 20
+
+Deflation projection:
+nkv = 16
+nmx = 256
+res = 1.0e-02
+
+Deflation subspace generation:
+kappa = 0.120000
+mu = 0.01
+ninv = 10
+nmr = 4
+ncy = 4
+
+Configurations no 1 -> 1 in steps of 1
+
+VA, AV, SP, PS, TT~ operators initialized
+
+Configuration no 1
+Deflation subspace generation: status = 4
+Inversions for xi_A and zeta_A :
+   icorr=0 , x0=1
+      noise vector A 0
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 1
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 2
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:15 5
+      noise vector A 3
+         type=6, prop=4, status:15 5
+         type=5, prop=5, status:15 5
+      noise vector A 4
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 5
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:15 5
+      noise vector A 6
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:15 5
+      noise vector A 7
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 8
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:15 5
+      noise vector A 9
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 10
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+      noise vector A 11
+         type=6, prop=4, status:14 5
+         type=5, prop=5, status:14 5
+Inversions for xi_B and zeta_B :
+   icorr=0 , z0=14
+      noise vector B 0
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 1
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+      noise vector B 2
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+      noise vector B 3
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+      noise vector B 4
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 5
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 6
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 7
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+      noise vector B 8
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 9
+         type=6, prop=4, status:15 5
+         type=5, prop=4, status:15 5
+      noise vector B 10
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+      noise vector B 11
+         type=6, prop=4, status:14 5
+         type=5, prop=4, status:14 5
+Inversions for xi_A and zeta_A :
+   icorr=1 , x0=1
+      noise vector A 0
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 1
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 2
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 3
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 4
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 5
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 6
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 7
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 8
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 9
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 10
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+      noise vector A 11
+         type=6, prop=0, status:10 4
+         type=10, prop=1, status:7 4
+Inversions for xi_B and zeta_B :
+   icorr=1 , z0=14
+      noise vector B 0
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 1
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 2
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 3
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 4
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 5
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 6
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 7
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 8
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 9
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 10
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+      noise vector B 11
+         type=6, prop=3, status:7 4
+         type=10, prop=2, status:10 4
+G_conn(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
+G_disc(t) =  0.0000e+00+0.0000e+00i,0.0000e+00+0.0000e+00i,...,0.0000e+00+0.0000e+00i
+Configuration no 1 fully processed in 6.61e+01 sec (average = 6.61e+01 sec)
+

@@ -992,6 +992,8 @@ static void write_data(void)
    int nw; /*total number of elements to be written*/
    int chunk; /*size of each chunk that is written to file (??)*/
    int icorr; /*index used in the function*/
+   
+   /*int inoiseA,inoiseB,iop,t;*/
 
    /*the data is written only on process 0*/
    if (my_rank==0)
@@ -1029,7 +1031,26 @@ static void write_data(void)
          nw+=chunk; /*update the writing count*/
          
          /*writing of the correlator*/
-         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),sizeof(double),chunk,fdat);
+         iw+=fwrite(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),sizeof(double),chunk,fdat); 
+
+         /*[inoise_A +nnoise*(inoise_B + nnoise*(cpr[0]*L0+y0 + tvals*(iop + noperator*icorr)))]*/
+         /*
+         for (iop=0;iop<noperator;iop++)
+         {
+            for (t=0;t<tvals;t++)
+            {
+               for (inoiseB=0;inoiseB<nnoise;inoiseB++)
+               {
+                  for (inoiseA=0;inoiseA<nnoise;inoiseA++)
+                  {
+                     iw+=fwrite( &(data.corrConn[inoiseA +nnoise*(inoiseB + nnoise*(t + tvals*(iop + noperator*icorr)))]),sizeof(double),2, fdat );
+                     nw+=2;
+                     iw+=fwrite( &(data.corrDisc[inoiseA +nnoise*(inoiseB + nnoise*(t + tvals*(iop + noperator*icorr)))]),sizeof(double),2, fdat );
+                     nw+=2;
+                  }
+               }
+            }
+         }*/
          
       }
 
@@ -1171,6 +1192,8 @@ static void write_file_head(void)
    int iw=0;
    int i;
    double dbl[1];
+   lat_parms_t lat; /*to print also csw and cf*/
+   lat = lat_parms(); /*set lat to be global lattice structure*/
 
    istd[0]=(stdint_t)(file_head.ncorr);
    if (endian==BIG_ENDIAN)
@@ -1202,7 +1225,17 @@ static void write_file_head(void)
       bswap_int(1,istd);
    iw+=fwrite(istd,sizeof(stdint_t),1,fdat);
 
-   error_root(iw!=6,1,"write_file_head [odd_df2_4fop.c]",
+   dbl[0] = lat.csw;
+   if (endian==BIG_ENDIAN)
+      bswap_double(1,dbl);
+   iw+=fwrite(dbl,sizeof(double),1,fdat);
+
+   dbl[0] = lat.cF;
+   if (endian==BIG_ENDIAN)
+      bswap_double(1,dbl);
+   iw+=fwrite(dbl,sizeof(double),1,fdat);
+
+   error_root(iw!=8,1,"write_file_head [odd_df2_4fop.c]",
               "Incorrect write count");
 
    
@@ -2588,6 +2621,11 @@ by calling the correlators() function
 static void set_data(int nc)
 {
 
+   /*tmp variables used to make checks*/
+   /*FILE *tmp_file;
+   int inoise_A,inoise_B,t,iop,icorr;
+   static int rewritefile=0;*/
+
    data.nc=nc; /*sets data.nc to be te index of the gauge configuration passed as input*/
    correlators(); /*computes the correlator with the gauge configuration nc*/
 
@@ -2605,6 +2643,37 @@ static void set_data(int nc)
                            data.corrDisc[file_head.tvals-1].im); /*... and at the last time ...*/
       printf("\n");
       fflush(flog); /*the output (that is directed on the log file) is flushed*/
+
+      /*if(rewritefile==0)
+      {
+         tmp_file = fopen("check_file.txt", "w");
+         fclose(tmp_file);
+         rewritefile=1;
+      }*/
+
+      /*to make a check the correlators are written in a txt file*/
+      /*tmp_file = fopen("check_file.txt", "a");
+      for (icorr=0;icorr<ncorr;icorr++)
+      {
+         for (iop=0;iop<noperator;iop++)
+         {
+            for (inoise_B=0;inoise_B<nnoise;inoise_B++)
+            {
+               for (inoise_A=0;inoise_A<nnoise;inoise_A++)
+               {
+                  for (t=0;t<tvals;t++)
+                  {
+                     fprintf(tmp_file, "%e+",data.corrDisc[inoise_A +nnoise*(inoise_B + nnoise*(t + tvals*(iop + noperator*icorr)))].re);
+                     fprintf(tmp_file, "%ej ",data.corrDisc[inoise_A +nnoise*(inoise_B + nnoise*(t + tvals*(iop + noperator*icorr)))].im);
+                  }
+                  fprintf(tmp_file,"\n");
+               }
+            }
+         }
+      }
+      
+      fclose(tmp_file);*/
+
    }
 
 }

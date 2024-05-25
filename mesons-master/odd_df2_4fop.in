@@ -3,8 +3,8 @@
 ######################################################
 
 [Run name]
-name         odd_prova36
-output       odd_prova36      # optional
+name         odd_prova48
+output       odd_prova48      # optional
 
 
 [Directories]                     # as in openQCD            
@@ -15,7 +15,7 @@ dat_dir      ./dat
 
 [Configurations]                  # as in openQCD ms1
 first        1 
-last         1
+last         3
 step         1
 
 [Random number generator]         # as in openQCD
@@ -30,14 +30,14 @@ seed         73098
 [Measurements]
 nprop        6                    # number of different quark lines
 ncorr        2                    # number of different correlators
-nnoise       12                  # number of noise vectors / conf
-noise_type   ONE_COMPONENT       # noise type: U1 or Z2 or GAUSS or ONE_COMPONENT
+nnoise       20                  # number of noise vectors / conf
+noise_type   U1       # noise type: U1 or Z2 or GAUSS or ONE_COMPONENT
 #csw          1.4951               # Dirac operator options
 csw          0.0
 cF           1.0                  # common to all quark lines
 eoflg        0                    # twisted mass flag (even-odd flag)
-random_conf 0                     # when set to 1 generate random (uniformly distibuted) gauge configurations
-check_gauge_inv 0                 # when set to 1 repeat each calculation with gauge transformed configurations
+random_conf 1                     # when set to 1 generate random (uniformly distibuted) gauge configurations
+check_gauge_inv 1                 # when set to 1 repeat each calculation with gauge transformed configurations
 
 
 ######################################################

@@ -52,6 +52,8 @@ tvals=0
 noise_type=0
 check_gauge_inv=0
 random_conf=0
+csw=0.0
+cf=0.0
 
 
 ##### function printing info to terminal #####
@@ -63,7 +65,9 @@ def print_info():
     print(f"- tvals           = {tvals}\n")
     print(f"- noise_type      = {noise_dict[noise_type]}\n")
     print(f"- check_gauge_inv = {check_gauge_inv}\n")
-    print(f"- random_conf     = {random_conf}\n\n")
+    print(f"- random_conf     = {random_conf}\n")
+    print(f"- csw             = {csw}\n")
+    print(f"- cF              = {cf}\n\n")
 
     #Correlators Header print
     for i in range(ncorr):
@@ -88,7 +92,7 @@ def plotCorr(confNumb,corrNumb,name,save=True,show=False):
     #global variables
     global conf_dict,conf_name,fileName,runName
     global k1,k2,k3,k4,mu1,mu2,mu3,mu4,typeA,typeB,x0,z0
-    global ncorr, nnoise, tvals, noise_type, check_gauge_inv
+    global ncorr, nnoise, tvals, noise_type, check_gauge_inv, csw, cf
     
     #names of 5 operators
     op_names = ["VA","AV","SP","PS",r'T $\mathbf{\~{T}}$']
@@ -195,7 +199,9 @@ def plotCorr(confNumb,corrNumb,name,save=True,show=False):
         r'$N_{NOISE}$=%d' % nnoise,
          'Noise Type=%s' % noise_dict[noise_type],
          'Random Conf=%d' % random_conf,
-        r'$T$=%d' % tvals))
+        r'$T$=%d' % tvals,
+         r'$c_{SW}$=%.9f ' % csw,
+         r'$c_F$=%.9f' % cf))
 
 
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
@@ -226,7 +232,7 @@ def main():
     #global variables
     global conf_dict,conf_name,fileName,runName
     global k1,k2,k3,k4,mu1,mu2,mu3,mu4,typeA,typeB,x0,z0
-    global ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf
+    global ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf, csw, cf
 
 
     #read log file name from command line
@@ -247,11 +253,11 @@ def main():
     with open(fileName, mode='rb') as file: # b is important -> binary
         fileContent = file.read()
 
-        #header is made up of 6 integers, 5x4=20byte
-        header_size= 6*4
+        #header is made up of 5 integers, 5x4=20byte, and 2 double, 2x8=16byte
+        header_size= 6*4 +2*8
 
         #first 16 byte are four 4-byte integers
-        ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf = struct.unpack("iiiiii", fileContent[:header_size])
+        ncorr, nnoise, tvals, noise_type, check_gauge_inv, random_conf, csw, cf = struct.unpack("iiiiiidd", fileContent[:header_size])
 
         #initialization of correlators' variables
         k1=['']*ncorr
@@ -345,11 +351,19 @@ def main():
                                 #store complex number
                                 disc_corr[ic][op][t][noiseB][noiseA] = complex(re,im)
 
+                                ############# new reading #########
+
+                                #start_reading  = start_conf + 4 + 2 * 2*8 * (noiseA + nnoise*(noiseB + nnoise*(t + tvals*(op + noperators*ic ) ) ) )
+
+                                #re_con, im_con, re_disc, im_disc = struct.unpack("dddd",fileContent[start_reading:start_reading+2*2*8])
+                                #conn_corr[ic,op,t,noiseB,noiseA] = complex(re_con,im_con)
+                                #disc_corr[ic,op,t,noiseB,noiseA] = complex(re_disc,im_disc)
+
             #store of correlators associated to the given configuration
             if str(conf_number) not in conf_dict.keys():
-                conf_dict[str(conf_number)] = (conn_corr,disc_corr)
+                conf_dict[str(conf_number)] = (conn_corr.copy(),disc_corr.copy())
             else:
-                conf_dict[str(conf_number)+"_GaugeInvCheck"] = (conn_corr,disc_corr)
+                conf_dict[str(conf_number)+"_GaugeInvCheck"] = (conn_corr.copy(),disc_corr.copy())
 
 
     if verbose==True:
@@ -373,7 +387,7 @@ def main():
         plot_base_dir = "plots/"
         plot_dir=plot_base_dir+'plot_'+name.split('.')[0]
         png_list = [f for f in listdir(plot_dir) if f.endswith('png') and isfile(join(plot_dir, f) )]
-        for png in png_list[:1]:
+        for png in png_list[:2]:
             os.system("xdg-open "+plot_dir+'/'+png)
             
 
