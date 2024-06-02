@@ -15,10 +15,13 @@
 all: rmxeq mkdep mkxeq
 .PHONY: all
 
+MPI_HOME = /usr/lib/x86_64-linux-gnu/openmpi
+GCC=gcc
+
 
 # main programs and modules to be compiled
 
-MAIN = ym1 qcd1 qcd2 ms1 ms2 ms3 ms4
+MAIN = ym1 #qcd1 qcd2 ms1 ms2 ms3 ms4
 
 ARCHIVE = archive sarchive
 
@@ -93,7 +96,8 @@ VPATH = .:$(MDIR)/flags:$(MDIR)/lattice:$(MDIR)/archive:$(MDIR)/linalg:\
 
 # additional include directories
 
-INCPATH = $(MPI_INCLUDE) ../include
+#INCPATH = $(MPI_INCLUDE) ../include
+INCPATH = $(MPI_HOME)/include ../include
 
 
 # additional libraries
@@ -119,7 +123,8 @@ CFLAGS = -std=c89 -pedantic -fstrict-aliasing \
 ############################## do not change ###################################
 
 SHELL=/bin/bash
-CC=$(MPI_HOME)/bin/mpicc
+#CC=$(MPI_HOME)/bin/mpicc
+CC=/usr/bin/mpicc
 CLINKER=$(CC)
 
 PGMS= $(MAIN) $(MODULES)

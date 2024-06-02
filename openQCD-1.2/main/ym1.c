@@ -68,16 +68,16 @@ static int nth,ntr,dtr_log,dtr_ms,dtr_cnfg;
 static int ipgrd[2],flint;
 static double *Wact,*Yact,*Qtop;
 
-static char line[NAME_SIZE];
+static char line[NAME_SIZE*3+6];
 static char log_dir[NAME_SIZE],dat_dir[NAME_SIZE];
 static char loc_dir[NAME_SIZE],cnfg_dir[NAME_SIZE];
-static char log_file[NAME_SIZE],log_save[NAME_SIZE];
-static char par_file[NAME_SIZE],par_save[NAME_SIZE];
-static char dat_file[NAME_SIZE],dat_save[NAME_SIZE];
-static char msdat_file[NAME_SIZE],msdat_save[NAME_SIZE];
-static char rng_file[NAME_SIZE],rng_save[NAME_SIZE];
-static char cnfg_file[NAME_SIZE],end_file[NAME_SIZE];
-static char nbase[NAME_SIZE],cnfg[NAME_SIZE];
+static char log_file[NAME_SIZE*2+6],log_save[NAME_SIZE*2+7];
+static char par_file[NAME_SIZE*2+6],par_save[NAME_SIZE*2+7];
+static char dat_file[NAME_SIZE*2+6],dat_save[NAME_SIZE*2+7];
+static char msdat_file[NAME_SIZE*2+8],msdat_save[NAME_SIZE*2+9];
+static char rng_file[NAME_SIZE*2+6],rng_save[NAME_SIZE*2+7];
+static char cnfg_file[NAME_SIZE*3+10],end_file[NAME_SIZE*2+10];
+static char nbase[NAME_SIZE],cnfg[NAME_SIZE*2+5];
 static FILE *fin=NULL,*flog=NULL,*fdat=NULL,*fend=NULL;
 
 static lat_parms_t lat;

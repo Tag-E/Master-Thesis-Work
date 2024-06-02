@@ -1,0 +1,140 @@
+
+Simulation of the SU(3) gauge theory
+------------------------------------
+
+New run, start from random configuration
+
+Using the HMC algorithm
+Program version openQCD-1.2
+The machine is little endian
+
+16x16x16x8 lattice, 8x8x8x8 local lattice
+2x2x2x1 process grid, 1x1x1x1 process block size
+Open boundary conditions
+
+beta = 6.0
+c0 = 1.0, c1 = 0.0
+cG = 1.0
+
+Random number generator:
+level = 0, seed = 73099
+
+Trajectories:
+tau = 3.0
+4th order OMF integrator
+Number of steps = 16
+
+nth = 16, ntr = 32
+dtr_log = 4, dtr_ms = 8, dtr_cnfg = 16
+
+Online measurement of Wilson flow observables
+
+Wilson flow:
+3rd order RK integrator
+eps = 0.02
+nstep = 100
+dnms = 10
+
+Trajectory no 4
+dH = -2.6e-01, iac = 1
+Average plaquette = 1.331736
+Acceptance rate = 1.00
+Time per trajectory = 8.03e-01 sec (average = 8.03e-01 sec)
+
+Trajectory no 8
+dH = -1.0e-01, iac = 1
+Average plaquette = 1.576083
+Acceptance rate = 1.00
+Time per trajectory = 7.82e-01 sec (average = 7.92e-01 sec)
+
+Trajectory no 12
+dH = -2.9e-02, iac = 1
+Average plaquette = 1.659530
+Acceptance rate = 1.00
+Time per trajectory = 1.29e+00 sec (average = 9.59e-01 sec)
+
+Trajectory no 16
+dH = -4.4e-03, iac = 1
+Average plaquette = 1.691956
+Acceptance rate = 1.00
+Time per trajectory = 1.44e+00 sec (average = 1.08e+00 sec)
+
+Measurement run:
+
+n =   0, t = 0.00e+00, Wact = 4.821973e+05, Yact = 6.736052e+04, Q =  2.67e-02
+n =  10, t = 2.00e-01, Wact = 1.160856e+05, Yact = 3.782598e+04, Q =  1.39e-01
+n =  20, t = 4.00e-01, Wact = 4.028546e+04, Yact = 1.991248e+04, Q = -4.32e-01
+n =  30, t = 6.00e-01, Wact = 1.918331e+04, Yact = 1.208806e+04, Q = -4.97e-01
+n =  40, t = 8.00e-01, Wact = 1.155238e+04, Yact = 8.362611e+03, Q = -5.19e-01
+n =  50, t = 1.00e+00, Wact = 8.163769e+03, Yact = 6.370154e+03, Q = -4.40e-01
+n =  60, t = 1.20e+00, Wact = 6.340336e+03, Yact = 5.166676e+03, Q = -2.53e-01
+n =  70, t = 1.40e+00, Wact = 5.209683e+03, Yact = 4.366050e+03, Q = -7.12e-02
+n =  80, t = 1.60e+00, Wact = 4.438902e+03, Yact = 3.793926e+03, Q =  2.47e-02
+n =  90, t = 1.80e+00, Wact = 3.880295e+03, Yact = 3.363828e+03, Q =  4.41e-02
+n = 100, t = 2.00e+00, Wact = 3.454334e+03, Yact = 3.027692e+03, Q = -1.13e-04
+
+Configuration fully processed in 5.37e+00 sec (average = 5.37e+00 sec)
+Measured data saved
+
+Configuration no 1 saved on the local disks and exported
+
+Trajectory no 20
+dH = +6.1e-03, iac = 1
+Average plaquette = 1.692210
+Acceptance rate = 1.00
+Time per trajectory = 1.41e+00 sec (average = 1.14e+00 sec)
+
+Trajectory no 24
+dH = -1.1e-02, iac = 1
+Average plaquette = 1.700713
+Acceptance rate = 1.00
+Time per trajectory = 1.38e+00 sec (average = 1.18e+00 sec)
+
+Measurement run:
+
+n =   0, t = 0.00e+00, Wact = 4.789692e+05, Yact = 6.681747e+04, Q = -2.81e-02
+n =  10, t = 2.00e-01, Wact = 1.119271e+05, Yact = 3.623010e+04, Q =  9.34e-01
+n =  20, t = 4.00e-01, Wact = 3.746065e+04, Yact = 1.830710e+04, Q =  2.69e-01
+n =  30, t = 6.00e-01, Wact = 1.688901e+04, Yact = 1.054408e+04, Q = -3.07e-01
+n =  40, t = 8.00e-01, Wact = 9.415921e+03, Yact = 6.833801e+03, Q = -5.15e-01
+n =  50, t = 1.00e+00, Wact = 6.173822e+03, Yact = 4.877966e+03, Q = -6.03e-01
+n =  60, t = 1.20e+00, Wact = 4.489843e+03, Yact = 3.726720e+03, Q = -5.66e-01
+n =  70, t = 1.40e+00, Wact = 3.484025e+03, Yact = 2.983331e+03, Q = -4.33e-01
+n =  80, t = 1.60e+00, Wact = 2.823611e+03, Yact = 2.470066e+03, Q = -2.64e-01
+n =  90, t = 1.80e+00, Wact = 2.361206e+03, Yact = 2.098162e+03, Q = -9.75e-02
+n = 100, t = 2.00e+00, Wact = 2.022249e+03, Yact = 1.818716e+03, Q =  4.82e-02
+
+Configuration fully processed in 5.29e+00 sec (average = 5.33e+00 sec)
+Measured data saved
+
+Trajectory no 28
+dH = -5.7e-03, iac = 1
+Average plaquette = 1.703299
+Acceptance rate = 1.00
+Time per trajectory = 1.38e+00 sec (average = 1.21e+00 sec)
+
+Trajectory no 32
+dH = -5.4e-03, iac = 1
+Average plaquette = 1.707004
+Acceptance rate = 1.00
+Time per trajectory = 1.38e+00 sec (average = 1.23e+00 sec)
+
+Measurement run:
+
+n =   0, t = 0.00e+00, Wact = 4.766499e+05, Yact = 6.653529e+04, Q = -3.84e-01
+n =  10, t = 2.00e-01, Wact = 1.112837e+05, Yact = 3.600915e+04, Q =  6.36e-01
+n =  20, t = 4.00e-01, Wact = 3.735053e+04, Yact = 1.815593e+04, Q =  1.90e+00
+n =  30, t = 6.00e-01, Wact = 1.687806e+04, Yact = 1.042704e+04, Q =  2.57e+00
+n =  40, t = 8.00e-01, Wact = 9.503775e+03, Yact = 6.787541e+03, Q =  2.96e+00
+n =  50, t = 1.00e+00, Wact = 6.323887e+03, Yact = 4.892918e+03, Q =  3.10e+00
+n =  60, t = 1.20e+00, Wact = 4.672311e+03, Yact = 3.782860e+03, Q =  3.01e+00
+n =  70, t = 1.40e+00, Wact = 3.678408e+03, Yact = 3.062261e+03, Q =  2.78e+00
+n =  80, t = 1.60e+00, Wact = 3.014590e+03, Yact = 2.556982e+03, Q =  2.50e+00
+n =  90, t = 1.80e+00, Wact = 2.538619e+03, Yact = 2.182423e+03, Q =  2.27e+00
+n = 100, t = 2.00e+00, Wact = 2.179963e+03, Yact = 1.893201e+03, Q =  2.09e+00
+
+Configuration fully processed in 5.28e+00 sec (average = 5.32e+00 sec)
+Measured data saved
+
+Configuration no 2 saved on the local disks and exported
+
