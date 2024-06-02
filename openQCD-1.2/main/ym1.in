@@ -10,7 +10,7 @@ cnfg_dir     /data/ym1/cnfg
 
 [Lattice parameters]
 beta         6.00
-c0           1.6667
+c0           1.0 #1.6667
 cG           1.0
 
 [Random number generator]

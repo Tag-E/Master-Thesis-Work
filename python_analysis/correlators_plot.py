@@ -169,7 +169,7 @@ def plotCorr(confNumb,corrNumb,name,save=True,show=False):
     plt.xlabel('Time [lattice units]',fontsize=16)
 
     #set title
-    plt.suptitle(f'|G(t)| for parity odd operators - (Configuration {confNumb}, Correlator {corrNumb})', fontsize=25,y=0.98,)
+    plt.suptitle(f'G(t) for parity odd operators - (Configuration {confNumb}, Correlator {corrNumb})', fontsize=25,y=0.98,)
 
     #Display text box with frelevant parameters outside the plot
     textstr = '\n'.join((
