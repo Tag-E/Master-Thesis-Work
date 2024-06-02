@@ -131,6 +131,7 @@ static struct
 /*structure containing the correlators, it has:
    - an array corr (of complex doubles) with the complete values of all the correlators at all times,
    - a related array corr_tmp used as temporary copy to store the partial values of the correlators computed by a single process,
+   - corrX and corr Z, arrays related to the 2 point correlators with source in x and z respectively, and two tmp arrays for local computation
    - an index nc labelling the gauge configuration used to compute the correlator*/
 static struct
 {
@@ -138,8 +139,18 @@ static struct
    complex_dble *corrConn_tmp; /*partial value of the connected part of the correlators computed by a single process*/
    complex_dble *corrDisc; /*complete value of the disconnected part of the correlators*/
    complex_dble *corrDisc_tmp; /*partial value of the discconnected part of the correlators computed by a single process*/
+
+   complex_dble *corrX; /*2 point correlator with source at x, global array summed from all local processes*/
+   complex_dble *corrX_tmp; /*2 point correlator with source at x, local array*/
+   complex_dble *corrZ; /*2 point correlator with source at z, global array summed from all local processes*/
+   complex_dble *corrZ_tmp; /*2 point correlator with source at z, local array*/
+
    int nc; /*index of the gauge configuration the correlator is related to*/
 } data;
+
+/*structure containing the 2-point correlators, it has:
+   - an array corr being the sum of all arrays computed from local pieces
+   - an array corr_tmp being the part of the 2 point correlator computed in the local process*/
 
 /*structure containing the list of GAMMA1 and GAMMA2 structures appearing in each deltaF2 4f operator*/
 static struct
@@ -926,6 +937,20 @@ static void alloc_data(void)
    /*check on correct memory allocation*/
    error((data.corrConn==NULL)||(data.corrConn_tmp==NULL)||
          (data.corrDisc==NULL)||(data.corrDisc_tmp==NULL),1,"alloc_data [odd_df2_4fop.c]","Unable to allocate data arrays");
+
+   
+   /*the same thing are done for the arrays storing the 2 point functions*/
+
+   /*memory allocation*/
+   data.corrX=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*sizeof(complex_dble));
+   data.corrX_tmp=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*sizeof(complex_dble));
+   data.corrZ=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*sizeof(complex_dble));
+   data.corrZ_tmp=malloc(file_head.ncorr*file_head.nnoise*file_head.tvals*sizeof(complex_dble));
+
+   /*check on correct memory allocation*/
+   error((data.corrX==NULL)||(data.corrX_tmp==NULL)||
+         (data.corrZ==NULL)||(data.corrZ_tmp==NULL),1,"alloc_data [odd_df2_4fop.c]","Unable to allocate data arrays");
+
 }
 
 
@@ -936,6 +961,7 @@ static int read_data(void)
 {
    int ir; /*index used for the reading count*/
    int nr; /*total readings to be done*/
+   int nr_conn=0, nr_disc=0, nr_x=0, nr_z=0; /*reading to be done separated per arrays*/
    int chunk; /*size of the chunk written on the file*/
    int icorr; /*index used in the function*/
 
@@ -946,21 +972,33 @@ static int read_data(void)
 
    /*then we read the data of each correlator*/
 
+   /*(code improvement: chunk computation could be put here to avoid computations !!!!!!! )*/
+
    for (icorr=0;icorr<file_head.ncorr;icorr++)
    {
       chunk=file_head.nnoise*file_head.nnoise*file_head.tvals*2; /*size of the chunk to be read */
-      nr+=chunk; /*count update*/
+      nr_conn+=chunk; /*count update*/
       
       /*reading*/
       ir+=fread(&(data.corrConn[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),
                     sizeof(double),chunk,fdat);
       
-      nr+=chunk; /*count update*/
+      nr_disc+=chunk; /*count update*/
       
       /*reading*/
       ir+=fread(&(data.corrDisc[icorr*file_head.tvals*file_head.nnoise*file_head.nnoise*noperator]),
                     sizeof(double),chunk,fdat);
+
+      /*now same thing but for the 2 point functions*/
+      chunk=file_head.nnoise*file_head.tvals*2;
+      nr_x+=chunk;
+      ir+=fread(&(data.corrX[icorr*file_head.tvals*file_head.nnoise]), sizeof(double),chunk,fdat);
+      nr_z+=chunk;
+      ir+=fread(&(data.corrZ[icorr*file_head.tvals*file_head.nnoise]), sizeof(double),chunk,fdat);
+
    }
+
+   nr += nr_conn+nr_disc+nr_x+nr_z;
 
    /*if nothing has been read the function returns 0*/
    if (ir==0)
@@ -973,8 +1011,10 @@ static int read_data(void)
    /*if the machine is big endian swaps the bit of the read input (that is always little endian)*/
    if(endian==BIG_ENDIAN)
    {
-      bswap_double(nr,data.corrConn);
-      bswap_double(nr,data.corrDisc);
+      bswap_double(nr_conn,data.corrConn);
+      bswap_double(nr_disc,data.corrDisc);
+      bswap_double(nr_x,data.corrX);
+      bswap_double(nr_z,data.corrZ);
       bswap_int(1,&(data.nc));
    }
 
@@ -1012,6 +1052,8 @@ static void write_data(void)
       {
          bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrConn);
          bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrX);
+         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrZ);
          bswap_int(1,&(data.nc));
       }
 
@@ -1019,6 +1061,8 @@ static void write_data(void)
       iw=fwrite(&(data.nc),sizeof(int),1,fdat);
 
       /*then we write the data for each 4fop corr*/
+
+      /*(code improvement: chunk computation could be put here to avoid computations !!!!!!! )*/
 
       for (icorr=0;icorr<file_head.ncorr;icorr++)
       {
@@ -1051,6 +1095,13 @@ static void write_data(void)
                }
             }
          }*/
+
+         /*same writing but done for the 2 point functions*/
+         chunk = file_head.nnoise*file_head.tvals*2;
+         nw+=chunk;
+         iw+=fwrite(&(data.corrX[icorr*file_head.tvals*file_head.nnoise]),sizeof(double),chunk,fdat);
+         nw+=chunk;
+         iw+=fwrite(&(data.corrZ[icorr*file_head.tvals*file_head.nnoise]),sizeof(double),chunk,fdat);
          
       }
 
@@ -1059,6 +1110,8 @@ static void write_data(void)
       {
          bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrConn);
          bswap_double(file_head.nnoise*file_head.nnoise*file_head.tvals*file_head.ncorr*noperator*2,data.corrDisc);
+         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrX);
+         bswap_double(file_head.nnoise*file_head.tvals*file_head.ncorr*2,data.corrZ);
          bswap_int(1,&(data.nc));
       }
 
@@ -2414,7 +2467,7 @@ static void correlators(void)
    do the trick ??
    */
 
-   /** initialization of the correlators (tmp counterpars used by local processes) **/
+   /** initialization of the correlators (tmp counterparts used by local processes) **/
 
    for (l=0;l<nnoise*nnoise*ncorr*tvals*noperator;l++)
    {
@@ -2422,6 +2475,16 @@ static void correlators(void)
       data.corrConn_tmp[l].im=0.0;
       data.corrDisc_tmp[l].re=0.0;
       data.corrDisc_tmp[l].im=0.0;
+   }
+
+   /** initialization of correlators for 2 points functions (tmp counterparts used by local processes) **/
+
+   for (l=0;l<nnoise*ncorr*tvals;l++)
+   {
+      data.corrX_tmp[l].re=0.0;
+      data.corrX_tmp[l].im=0.0;
+      data.corrZ_tmp[l].re=0.0;
+      data.corrZ_tmp[l].im=0.0;
    }
 
    /** loop over the correlators to be computed **/
@@ -2478,6 +2541,23 @@ static void correlators(void)
          /*then since what matters is GAMMA_1^dag gamma5 xi_A that is what we store inside the array xi_A*/
 
          /*mul_GAMMAdag_g5(xi_A[inoise_A],type1[icorr],xi_A[inoise_A]);*/ /*xi_A set to be GAMMA_1^dag gamma5 xi_A*/
+
+
+         /*********computation of 2 points corr with source in x**********/
+         mul_GAMMAdag_g5(xi_A[inoise_A],typeB[icorr],G1_g5_xi_A); /*G1_g5_xi_A set to be GAMMA_B^dag gamma5 xi_A*/
+         /*loop over spacetime to perorm the computation*/
+         for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+         {
+            for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+            {
+               iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
+               tmp1 = spinor_prod_dble(1,0,G1_g5_xi_A+iy,zeta_A[inoise_A]+iy);  /*tmp1 = ( GAMMA_B^dag g5 xi_A )^dag zeta_A*/
+               data.corrX_tmp[inoise_A+nnoise*(cpr[0]*L0+y0+tvals*icorr)].re += -tmp1.re; /*real part gets updated*/
+               data.corrX_tmp[inoise_A+nnoise*(cpr[0]*L0+y0+tvals*icorr)].im += -tmp1.im; /*imag part gets updated*/
+            }
+         }
+         /****************************************************************/
+
 
       } /*end of noise loop, nnoise zeta_A and xi_A produced*/
 
@@ -2591,6 +2671,24 @@ static void correlators(void)
 
          } /*end of A noise loop*/
 
+
+         /*********computation of 2 points corr with source in z**********/
+         mul_GAMMAdag_g5(xi_B,typeA[icorr],G2_g5_xi_B); /*G2_g5_xi_B set to be GAMMA_A^dag gamma5 xi_B*/
+         /*loop over spacetime to perorm the computation*/
+         for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
+         {
+            for (l=0;l<L1*L2*L3;l++) /*sum over the space index l*/
+            {
+               iy = ipt[l+y0*L1*L2*L3]; /*index of the point on the global (??) lattice*/
+               tmp2 = spinor_prod_dble(1,0,G2_g5_xi_B+iy,zeta_B+iy);  /*tmp2 = ( GAMMA_A^dag g5 xi_B )^dag zeta_B*/
+               data.corrZ_tmp[inoise_B+nnoise*(cpr[0]*L0+y0+tvals*icorr)].re += -tmp2.re; /*real part gets updated*/
+               data.corrZ_tmp[inoise_B+nnoise*(cpr[0]*L0+y0+tvals*icorr)].im += -tmp2.im; /*imag part gets updated*/
+            }
+         }
+         /****************************************************************/
+
+
+
       } /*end of B noise loop, sum of correlators computed*/
 
    } /*end of loop over the correlators*/
@@ -2603,6 +2701,9 @@ static void correlators(void)
 
    MPI_Allreduce(data.corrConn_tmp,data.corrConn,nnoise*nnoise*ncorr*tvals*noperator*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
    MPI_Allreduce(data.corrDisc_tmp,data.corrDisc,nnoise*nnoise*ncorr*tvals*noperator*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+
+   MPI_Allreduce(data.corrX_tmp,data.corrX,nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
+   MPI_Allreduce(data.corrZ_tmp,data.corrZ,nnoise*ncorr*tvals*2,MPI_DOUBLE,MPI_SUM, MPI_COMM_WORLD);
 
    /** memory deallocation**/
 

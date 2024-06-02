@@ -295,6 +295,8 @@ def main():
         #we compute the lenght of the data block for each configuration
         #          nnoise_A  *  nnoise_B  *  time lenght of lattice * noperators   * ncorrelators * 2 (diagrams=connected+disconnected)  * 2 (re+im) * 8 (sizeof(double))  + sizeof(int) (= conf_number)
         conf_len = nnoise    *   nnoise   *  tvals                  * noperators   * ncorr        * 2                                    * 2         * 8                    + 4
+        #                     ncorr * nnoise * tvaks * 2 (x+z 2point corr) * 2 (re+im) * 8 (sizeof(double))
+        conf_len = conf_len + ncorr * nnoise * tvals * 2                   * 2         * 8
 
         #starting right after the header we read each configuration block
         for start_conf in range(first_conf, len(fileContent), conf_len):
