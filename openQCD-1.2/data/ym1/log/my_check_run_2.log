@@ -1,0 +1,62 @@
+
+Simulation of the SU(3) gauge theory
+------------------------------------
+
+New run, start from random configuration
+
+Using the HMC algorithm
+Program version openQCD-1.2
+The machine is little endian
+
+16x16x16x8 lattice, 8x8x8x8 local lattice
+2x2x2x1 process grid, 1x1x1x1 process block size
+Open boundary conditions
+
+beta = 6.0
+c0 = 1.0, c1 = 0.0
+cG = 1.0
+
+Random number generator:
+level = 0, seed = 73099
+
+Trajectories:
+tau = 3.0
+4th order OMF integrator
+Number of steps = 16
+
+nth = 1, ntr = 1
+dtr_log = 1, dtr_ms = 1, dtr_cnfg = 1
+
+Online measurement of Wilson flow observables
+
+Wilson flow:
+3rd order RK integrator
+eps = 0.02
+nstep = 100
+dnms = 10
+
+Trajectory no 1
+dH = -1.3e+00, iac = 1
+Average plaquette = 0.728464
+Acceptance rate = 1.00
+Time per trajectory = 7.85e-01 sec (average = 7.85e-01 sec)
+
+Measurement run:
+
+n =   0, t = 0.00e+00, Wact = 8.373792e+05, Yact = 7.880796e+04, Q =  1.02e+00
+n =  10, t = 2.00e-01, Wact = 4.713502e+05, Yact = 8.516632e+04, Q =  1.93e+00
+n =  20, t = 4.00e-01, Wact = 3.112769e+05, Yact = 7.732280e+04, Q =  8.02e-01
+n =  30, t = 6.00e-01, Wact = 2.219238e+05, Yact = 6.803641e+04, Q = -8.66e-01
+n =  40, t = 8.00e-01, Wact = 1.633307e+05, Yact = 5.912744e+04, Q = -6.17e-01
+n =  50, t = 1.00e+00, Wact = 1.228904e+05, Yact = 5.104613e+04, Q =  9.03e-01
+n =  60, t = 1.20e+00, Wact = 9.448268e+04, Yact = 4.397568e+04, Q =  2.40e+00
+n =  70, t = 1.40e+00, Wact = 7.424276e+04, Yact = 3.796065e+04, Q =  3.31e+00
+n =  80, t = 1.60e+00, Wact = 5.958954e+04, Yact = 3.289006e+04, Q =  3.66e+00
+n =  90, t = 1.80e+00, Wact = 4.872086e+04, Yact = 2.863407e+04, Q =  3.69e+00
+n = 100, t = 2.00e+00, Wact = 4.046429e+04, Yact = 2.506112e+04, Q =  3.52e+00
+
+Configuration fully processed in 2.94e+00 sec (average = 2.94e+00 sec)
+Measured data saved
+
+Configuration no 1 saved on the local disks and exported
+

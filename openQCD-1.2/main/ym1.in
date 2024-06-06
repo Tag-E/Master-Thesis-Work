@@ -1,6 +1,6 @@
 
 [Run name]
-name         my_check_run_1
+name         my_check_run_2
 
 [Directories]
 log_dir      ../data/ym1/log
@@ -26,11 +26,11 @@ lambda       0.19
 nstep        16   
 
 [MD trajectories]
-nth          320
-ntr          32000
-dtr_log      4
-dtr_ms       8
-dtr_cnfg     32
+nth          1 #320
+ntr          1 #32000
+dtr_log      1 #4
+dtr_ms       1 #8
+dtr_cnfg     1 #32
 
 [Wilson flow]
 integrator   RK3
