@@ -33,3 +33,4 @@ mesons-master/q.log
 mesons-master/todo.txt
 xsf-stuff/
 python_analysis/plots/
+python_analysis/*.png

@@ -253,6 +253,7 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
 
     ### average over noise ###
     all_correlators_navg = all_correlators.mean(axis=-1).mean(axis=-1)
+    all_correlators_navg_tot = all_correlators_navg[:,0,:,:,:] + all_correlators_navg[:,1,:,:,:] #used to plot all configurations
 
     ### creation of jack replicates ###
     jack_replicates = np.asarray( [np.delete(all_correlators_navg,iconf,axis=0).mean(axis=0) for iconf in range(nconf)] )
@@ -602,6 +603,115 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
     #show figure
     if show:
         plt.show()
+
+
+
+    ##############  plot number 4: comparison of configuration with jackknife mean #####################ààà
+
+    #create figure and axis
+    fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+    #loop over plot, one for each of the 5 operators
+    for iop,op_name in enumerate(op_names):
+
+        for iconf in range(nconf):
+            lbl = None
+            if iconf == nconf-1:
+                lbl = "Configurations (no Jackknife)"
+            ax_list[iop].plot(times,all_correlators_navg_tot[iconf,corrNumb,iop,:].imag,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+
+        #mean and std with jackknife method
+        mean_corr = jack_mean_tot[corrNumb,iop,:].imag 
+        std_corr = np.sqrt(nconf-1) * np.std(jack_replicates_tot.imag,axis=0)[corrNumb,iop,:]
+
+
+        ax_list[iop].errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+        #enable grid
+        ax_list[iop].grid()
+
+        #set title
+        ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+        #set y label
+        ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+        #set legend
+        ax_list[iop].legend(loc='right')
+
+    
+    #set x ticks to be all time values
+    #plt.xticks(times)
+
+    #adjust subplot spacing
+    plt.subplots_adjust(left=0.04,
+                        bottom=0.05, 
+                        right=0.9, 
+                        top=0.9, 
+                        wspace=0.4, 
+                        hspace=0.6)
+
+    #set x label
+    #fig.supylabel("G(t)",rotation=0,fontsize=20)
+    plt.xlabel('Time [lattice units]',fontsize=16)
+
+    #set title
+    plt.suptitle(f'Total Im[G(t)] for parity odd operators - Correlator {corrNumb} - Jackknife Replicates and Jackknife Mean', fontsize=25,y=0.98,)
+
+    #Display text box with frelevant parameters outside the plot
+    textstr = '\n'.join((
+         'Correlator %d parameters:' % (corrNumb),
+         '           ',
+        r'$k_1$=%.9f ' % (k1[corrNumb] ),
+        r'$k_2$=%.9f ' % (k2[corrNumb] ),
+        r'$k_3$=%.9f ' % (k3[corrNumb] ),
+        r'$k_4$=%.9f ' % (k4[corrNumb] ),
+         '           ',
+        r'$\mu_1$=%.9f ' % (mu1[corrNumb] ),
+        r'$\mu_2$=%.9f ' % (mu2[corrNumb] ),
+        r'$\mu_3$=%.9f ' % (mu3[corrNumb] ),
+        r'$\mu_4$=%.9f ' % (mu4[corrNumb] ),
+         '           ',
+        r'$\Gamma_A$=' + latex_dirac_dict[typeA[corrNumb]],
+        r'$\Gamma_B$=' + latex_dirac_dict[typeB[corrNumb]],
+         '           ',
+        r'$x_0$=%d' % x0[corrNumb],
+        r'$z_0$=%d' % z0[corrNumb],
+         '           ',
+         '           ',
+         '           ',
+         '           ',
+         'Simulation parameters:',
+         '           ',
+        r'$N_{NOISE}$=%d' % nnoise,
+         'Noise Type=%s' % noise_dict[noise_type],
+         'Random Conf=%d' % random_conf,
+        r'$T$=%d' % tvals,
+        r'$c_{SW}$=%.9f ' % csw,
+        r'$c_F$=%.9f' % cf,
+         '           ',
+         '           ',
+         '           ',
+         'Configurations:',
+         '           ',
+        r'$N_{CONF}$=%d' % nconf,))
+
+
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    # place the text box in upper left in axes coords
+    plt.text(1.01, 0.95, textstr, transform=ax_list[0].transAxes, fontsize=14,
+            verticalalignment='top', bbox=props)
+
+    #save figure
+    if save:
+        fig_name = f"plot_jack_corr_allconf{corrNumb}_{runName}.png"
+        plt.savefig(plot_dir+"/"+fig_name)
+
+    #show figure
+    if show:
+        plt.show()
+
+
 
 
 ##### main function #####
