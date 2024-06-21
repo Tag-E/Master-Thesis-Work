@@ -726,6 +726,12 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
     ax_list[0].set_title(r"With source in $x_0$",fontsize=15,weight="bold")
     #set y label
     ax_list[0].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+    #plot all conf
+    for iconf in range(nconf):
+        lbl = None
+        if iconf == nconf-1:
+            lbl = "Configurations (no Jackknife)"
+        ax_list[0].plot(times,all_2point_x_navg[iconf,corrNumb,:].real,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
     #set legend
     ax_list[0].legend(loc='right')
 
@@ -736,9 +742,14 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
     ax_list[1].set_title(r"With source in $z_0$",fontsize=15,weight="bold")
     #set y label
     ax_list[1].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+    #plot all conf
+    for iconf in range(nconf):
+        lbl = None
+        if iconf == nconf-1:
+            lbl = "Configurations (no Jackknife)"
+        ax_list[1].plot(times,all_2point_z_navg[iconf,corrNumb,:].real,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
     #set legend
     ax_list[1].legend(loc='right')
-
     
     #set x ticks to be all time values
     #plt.xticks(times)
