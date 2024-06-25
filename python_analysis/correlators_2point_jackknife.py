@@ -873,6 +873,10 @@ def main():
         offset_3point = nnoise    *   nnoise   *  tvals                  * noperators        * 2                                    * 2         * 8 
         offset_2point = nnoise * tvals * 2                   * 2         * 8
 
+
+        #chunk size of the data due to a 3 point func and to a 2 point func
+        offset_diag3 = nnoise    *   nnoise   *  tvals                  * noperators        * 2         * 8
+        offset_diag2 = nnoise * tvals                   * 2         * 8
         
 
         #configuration start right after the header
@@ -906,7 +910,9 @@ def main():
             #same for 2 point
             x_corr.fill(complex(0,0))
             z_corr.fill(complex(0,0))
-            
+
+            #update reading pointer after the reading of the conf number
+            start_reading = start_conf+4
 
             #loop over the correlators (ncorr blocks of...)
             for ic in range(ncorr):
@@ -928,7 +934,7 @@ def main():
                                 #connected correlators
 
                                 #begin of reading point (8=sizeof(double)) (last 2 is number of diagrams)
-                                start_reading = start_conf+4 + 2*8*noiseA+2*8*nnoise*(noiseB+nnoise*(t+tvals*(op+noperators*2*ic)))
+                                #start_reading = start_conf+4 + 2*8*noiseA+2*8*nnoise*(noiseB+nnoise*(t+tvals*(op+noperators*2*ic)))
 
                                 #reading of real and complex for connected corr
                                 re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
@@ -939,13 +945,18 @@ def main():
                                 #disconnected correlators
 
                                 #begin of reading point (8=sizeof(double)) (last 2 is number of diagrams)
-                                start_reading = start_conf+4 + 2*8*noiseA+2*8*nnoise*(noiseB+nnoise*(t+tvals*(op+noperators*(2*ic+1))))
+                                #start_reading = start_conf+4 + 2*8*noiseA+2*8*nnoise*(noiseB+nnoise*(t+tvals*(op+noperators*(2*ic+1))))
+                                
 
                                 #reading of real and complex for connected corr
-                                re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
+                                #re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
+                                re,im = struct.unpack("dd",fileContent[start_reading+offset_diag3:start_reading+offset_diag3+16])
 
                                 #store complex number
                                 disc_corr[ic][op][t][noiseB][noiseA] = complex(re,im)
+
+                                #update start reading
+                                start_reading = start_reading+16
 
                                 ############# new reading #########
 
@@ -955,15 +966,24 @@ def main():
                                 #conn_corr[ic,op,t,noiseB,noiseA] = complex(re_con,im_con)
                                 #disc_corr[ic,op,t,noiseB,noiseA] = complex(re_disc,im_disc)
 
+                #update start reading for the disconnected part
+                start_reading = start_reading + offset_diag3 #offset_diag3 is the chunk size of the disconnected part
+
                 #reading of 2 point functions
                 for t in range(tvals):
                     for inoise in range(nnoise):
-                        start_reading = start_conf + 4 + offset_3point + 2*8*(inoise+nnoise*(t+tvals*2*ic)) #last 2 is for 2point in x and z
+                        #start_reading = start_conf + 4 + offset_3point + 2*8*(inoise+nnoise*(t+tvals*2*ic)) #last 2 is for 2point in x and z
                         re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
                         x_corr[ic][t][inoise] = complex(re,im)
-                        start_reading = start_conf + 4 + offset_3point + 2*8*(inoise+nnoise*(t+tvals*(2*ic+1))) 
-                        re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
+                        #start_reading = start_conf + 4 + offset_3point + 2*8*(inoise+nnoise*(t+tvals*(2*ic+1))) 
+                        #re,im = struct.unpack("dd",fileContent[start_reading:start_reading+16])
+                        re,im = struct.unpack("dd",fileContent[start_reading+offset_diag2:start_reading+offset_diag2+16])
                         z_corr[ic][t][inoise] = complex(re,im)
+                        #update start reading
+                        start_reading = start_reading+16
+
+                #update start reading for the 2point with source in z
+                start_reading = start_reading + offset_diag2
 
 
             #store of correlators associated to the given configuration
