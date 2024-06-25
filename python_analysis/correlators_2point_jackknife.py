@@ -8,6 +8,8 @@ from os import listdir #to list png files to show
 from os.path import isfile, join #to list png files to show
 import os #to show png files
 
+from astropy.stats import jackknife_resampling
+from astropy.stats import jackknife_stats
 
 
 ###### global variables #####
@@ -787,6 +789,200 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
 
 
 
+    #### jackknife with external library functions ####
+
+    test_statistic = np.mean
+
+    mean_array = np.empty(shape=(noperators,tvals),dtype=float)
+    #bias_array = np.empty(shape=(ncorr,noperators,tvals),dtype=float)
+    std_array = np.empty(shape=(noperators,tvals),dtype=float)
+    #conf_interval_array = np.empty(shape=(ncorr,noperators,tvals,2),dtype=float)
+    
+    
+    for iop in range(noperators):
+        for t in range(tvals):
+                
+            data = all_correlators_navg_tot[:,corrNumb,iop,t].imag
+                
+            estimate, bias, stderr, conf_interval = jackknife_stats(data, test_statistic, 0.95)
+                
+            mean_array[iop,t] = estimate
+            #bias_array[icorr,iop,t] = bias
+            std_array[iop,t] = stderr
+            #conf_interval_array[icorr,iop,t] = conf_interval
+
+    #### computation of 3 points normalized to 2
+
+    #creation of normalized 3 point
+    norm_3point = np.empty(shape=(nconf,noperators,tvals),dtype=complex)
+
+    for iconf in range(nconf):
+        for iop in range(noperators):
+            norm_3point[iconf,iop,:] = all_correlators_navg_tot[iconf,corrNumb,iop,:]/(all_2point_x_navg[iconf,corrNumb,:]*all_2point_z_navg[iconf,corrNumb,:])
+
+    #computation of jacknife mean and related std
+    test_statistic = np.mean
+
+    mean_array_norm = np.empty(shape=(noperators,tvals),dtype=float)
+    #bias_array = np.empty(shape=(ncorr,noperators,tvals),dtype=float)
+    std_array_norm = np.empty(shape=(noperators,tvals),dtype=float)
+    #conf_interval_array = np.empty(shape=(ncorr,noperators,tvals,2),dtype=float)
+
+    for iop in range(noperators):
+        for t in range(tvals):
+        
+            data = norm_3point[:,iop,t].imag
+            
+            estimate, bias, stderr, conf_interval = jackknife_stats(data, test_statistic, 0.95)
+            
+            mean_array_norm[iop,t] = estimate
+            #bias_array[icorr,iop,t] = bias
+            std_array_norm[iop,t] = stderr
+            #conf_interval_array[icorr,iop,t] = conf_interval
+
+    #### plts 6-7:  3 points and normalized 3 points ####
+    #create figure and axis
+    fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+    #loop over plot, one for each of the 5 operators
+    for iop,op_name in enumerate(op_names):
+
+        for iconf in range(nconf):
+            lbl = None
+            if iconf == nconf-1:
+                lbl = "Configurations (no Jackknife)"
+            ax_list[iop].plot(times,all_correlators_navg_tot[iconf,corrNumb,iop,:].imag,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+
+        #mean and std with jackknife method
+        mean_corr = mean_array[iop,:] 
+        std_corr = std_array[iop,:]
+
+        ax_list[iop].errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+        #enable grid
+        ax_list[iop].grid()
+
+        #set title
+        ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+        #set y label
+        ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+        #set legend
+        ax_list[iop].legend(loc='right')
+
+    
+    #set x ticks to be all time values
+    #plt.xticks(times)
+
+    #adjust subplot spacing
+    plt.subplots_adjust(left=0.04,
+                        bottom=0.05, 
+                        right=0.9, 
+                        top=0.9, 
+                        wspace=0.4, 
+                        hspace=0.6)
+
+    #set x label
+    #fig.supylabel("G(t)",rotation=0,fontsize=20)
+    plt.xlabel('Time [lattice units]',fontsize=16)
+
+    #set title
+    plt.suptitle(f'Total Im[G(t)] for parity odd operators - Correlator {corrNumb} - All Configurations and Jackknife Mean (ext)', fontsize=25,y=0.98,)
+
+    #Display text box with frelevant parameters outside the plot
+
+    #textstr is defined above    
+
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    # place the text box in upper left in axes coords
+    plt.text(1.01, 0.95, textstr, transform=ax_list[0].transAxes, fontsize=14,
+            verticalalignment='top', bbox=props)
+
+    #save figure
+    if save:
+        fig_name = f"plot_jack_corr{corrNumb}_allconf_{runName}_ext.png"
+        plt.savefig(plot_dir+"/"+fig_name)
+
+    #show figure
+    if show:
+        plt.show()
+
+    #### ####
+
+    #create figure and axis
+    fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+    #loop over plot, one for each of the 5 operators
+    for iop,op_name in enumerate(op_names):
+
+        for iconf in range(nconf):
+            lbl = None
+            if iconf == nconf-1:
+                lbl = "Configurations (no Jackknife)"
+            #ax_list[iop].plot(times,norm_3point[iconf,iop,:],'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+
+        #mean and std with jackknife method
+        mean_corr = mean_array_norm[iop,:] 
+        std_corr = std_array_norm[iop,:]
+
+        ax_list[iop].errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+        #enable grid
+        ax_list[iop].grid()
+
+        #set title
+        ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+        #set y label
+        ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+        #set legend
+        ax_list[iop].legend(loc='right')
+
+    
+    #set x ticks to be all time values
+    #plt.xticks(times)
+
+    #adjust subplot spacing
+    plt.subplots_adjust(left=0.04,
+                        bottom=0.05, 
+                        right=0.9, 
+                        top=0.9, 
+                        wspace=0.4, 
+                        hspace=0.6)
+
+    #set x label
+    #fig.supylabel("G(t)",rotation=0,fontsize=20)
+    plt.xlabel('Time [lattice units]',fontsize=16)
+
+    #set title
+    plt.suptitle(f'Total Im[G(t)] for parity odd operators - Correlator {corrNumb} - Normalized to 2 point functions (ext)', fontsize=25,y=0.98,)
+
+    #Display text box with frelevant parameters outside the plot
+
+    #textstr is defined above    
+
+    props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+    # place the text box in upper left in axes coords
+    plt.text(1.01, 0.95, textstr, transform=ax_list[0].transAxes, fontsize=14,
+            verticalalignment='top', bbox=props)
+
+    #save figure
+    if save:
+        fig_name = f"plot_normjack_corr{corrNumb}_{runName}_ext.png"
+        plt.savefig(plot_dir+"/"+fig_name)
+
+    #show figure
+    if show:
+        plt.show()
+
+
+
+
+
+
+
 ##### main function #####
 def main():
 
@@ -1034,6 +1230,7 @@ def main():
     if show==True:
         #name of dir for plots
         plot_base_dir = "plots/"
+        #plot_dir=plot_base_dir+'plot_jack2_'+name.split('.')[0]
         plot_dir=plot_base_dir+'plot_jack2_'+name.split('.')[0]
         png_list = [f for f in listdir(plot_dir) if f.endswith('png') and isfile(join(plot_dir, f) )]
         for png in png_list[:1]:
