@@ -67,6 +67,9 @@ all_correlators = np.array((),dtype=complex)
 #variable used to skip some configurations
 confSTEP = 1
 
+#variable used to cut variables from the plateau
+skipPlateau = 0
+
 
 ##### function printing info to terminal #####
 def print_info():
@@ -250,6 +253,7 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
 
     #names of 5 operators
     op_names = ["VA","AV","SP","PS",r'T $\mathbf{\~{T}}$']
+    op_names_simple = ["VA","AV","SP","PS",'TTtilda']
 
     #name of dir for plots
     plot_base_dir = "plots/"
@@ -984,6 +988,74 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
 
 
 
+    #### plts 8-13:  plateau of the 3 points ####
+
+    #loop over plot, one for each of the 5 operators
+    for iop,op_name in enumerate(op_names):
+
+
+        #create figure and axis
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+
+        #mean and std with jackknife method
+        mean_corr = mean_array[iop,:] 
+        std_corr = std_array[iop,:]
+
+        #to plot only the plateau we remove some points at the beginning and at the end
+        if skipPlateau==0:
+            ax.errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+        else:
+            ax.errorbar(times[skipPlateau:-skipPlateau],mean_corr[skipPlateau:-skipPlateau],yerr=std_corr[skipPlateau:-skipPlateau],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+        #enable grid
+        ax.grid()
+
+        #set y label
+        ax.set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+        #set legend
+        ax.legend(loc='right')
+
+
+        #adjust subplot spacing
+        plt.subplots_adjust(left=0.04,
+                            bottom=0.05, 
+                            right=0.9, 
+                            top=0.9, 
+                            wspace=0.4, 
+                            hspace=0.6)
+
+        #set x label
+        plt.xlabel('Time [lattice units]',fontsize=16)
+
+        #set title
+        plt.suptitle(f'Total Im[G(t)] for {op_name} operator - Correlator {corrNumb} - Zoom on Plateau', fontsize=25,y=0.98,)
+
+        #Display text box with frelevant parameters outside the plot
+
+        #textstr is defined above    
+
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        # place the text box in upper left in axes coords
+        plt.text(1.01, 0.95, textstr, transform=ax_list[0].transAxes, fontsize=14,
+                verticalalignment='top', bbox=props)
+
+        #save figure
+        if save:
+            fig_name = f"plot_plateau_{op_names_simple[iop]}_corr{corrNumb}_{runName}_ext.png"
+            plt.savefig(plot_dir+"/"+fig_name)
+
+        #show figure
+        if show:
+            plt.show()
+
+    #### ####
+
+
+
+
+
 
 
 ##### main function #####
@@ -1004,7 +1076,7 @@ def main():
     global conf_names, conf_list, nconf, all_correlators
     #for 2 point
     global conf_dict_2p, all_2point_x, all_2point_z
-    global confSTEP
+    global confSTEP, skipPlateau
 
 
     #read log file name from command line
@@ -1023,6 +1095,10 @@ def main():
     #decide the step at which configurations are read
     if "-step" in args:
         confSTEP = int(args[args.index("-step")+1])
+
+    #decide the number of points to cut to look at the plateau
+    if "-plateau" in args:
+        skipPlateau = int(args[args.index("-plateau")+1])
 
 
     ##### reading data from binary dat file #####
