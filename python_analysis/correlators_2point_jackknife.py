@@ -721,7 +721,7 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
     zstd_re = np.std(jack_replicates_z.real,axis=0)
 
 
-    ax_list[0].errorbar(times,xmean[corrNumb,:].real,yerr=xstd_re[corrNumb,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+    ax_list[0].errorbar(times,np.abs(xmean[corrNumb,:].real),yerr=xstd_re[corrNumb,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
     #enable grid
     ax_list[0].grid()
     #set title
@@ -733,11 +733,11 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
         lbl = None
         if iconf == nconf-1:
             lbl = "Configurations (no Jackknife)"
-        ax_list[0].plot(times,all_2point_x_navg[iconf,corrNumb,:].real,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+        ax_list[0].plot(times,np.abs(all_2point_x_navg[iconf,corrNumb,:].real),'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
     #set legend
     ax_list[0].legend(loc='right')
 
-    ax_list[1].errorbar(times,zmean[corrNumb,:].real,yerr=zstd_re[corrNumb,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+    ax_list[1].errorbar(times,np.abs(zmean[corrNumb,:].real),yerr=zstd_re[corrNumb,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
     #enable grid
     ax_list[1].grid()
     #set title
@@ -749,9 +749,12 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
         lbl = None
         if iconf == nconf-1:
             lbl = "Configurations (no Jackknife)"
-        ax_list[1].plot(times,all_2point_z_navg[iconf,corrNumb,:].real,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+        ax_list[1].plot(times,np.abs(all_2point_z_navg[iconf,corrNumb,:].real),'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
     #set legend
     ax_list[1].legend(loc='right')
+
+    ax_list[1].set_yscale('log')
+    ax_list[0].set_yscale('log')
     
     #set x ticks to be all time values
     #plt.xticks(times)
@@ -769,7 +772,7 @@ def jackknife_plots(corrNumb,name,save=True,show=False):
     plt.xlabel('Time [lattice units]',fontsize=16)
 
     #set title
-    plt.suptitle(f'Re[G(t)] for 2 point correlator - Correlator {corrNumb}', fontsize=25,y=0.98,)
+    plt.suptitle(f'|Re[G(t)]| for 2 point correlator - Correlator {corrNumb}', fontsize=25,y=0.98,)
 
     #Display text box with frelevant parameters outside the plot #texstr defined before
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
