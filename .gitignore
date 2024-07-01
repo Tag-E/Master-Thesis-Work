@@ -34,3 +34,4 @@ mesons-master/todo.txt
 xsf-stuff/
 python_analysis/plots/
 python_analysis/*.png
+python_analysis/__pycache__

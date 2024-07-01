@@ -38,6 +38,9 @@ from sympy import divisors #to get a list of divisor of an int
 from astropy.stats import jackknife_stats #for the data analysis using the jackknife method
 from scipy.stats import bootstrap #for the data analysis using the bootstrap method
 import matplotlib.pyplot as plt #for the plots
+from os import listdir #to list png files to show
+from os.path import isfile, join #to list png files to show
+import os #to show png files
 
 
 
@@ -272,7 +275,7 @@ class run:
         #we now initialize the relevant arrays that store the data in the class
 
         if verbose:
-            print("Initializing the data arrays...\n")
+            print("\nInitializing the data arrays...\n")
 
         #construction of array with names and numbers of configurations
         self.conf_names = list(self.conf_dict_3p.keys())[0::1+self.check_gauge_inv] #(we skip the gauge transformed configuration if there are)
@@ -286,6 +289,47 @@ class run:
             self.all_3pCorr[iconf] = self.conf_dict_3p[nameconf]
             self.all_2pCorr_x[iconf] = self.conf_dict_2p[nameconf][0]
             self.all_2pCorr_z[iconf] = self.conf_dict_2p[nameconf][1]
+
+
+        #creation of the info box that will be displayed on all plots
+        self.text_infobox = []
+        for icorr in range(self.ncorr): #a different infobox for each correlator
+            self.text_infobox.append( '\n'.join((
+                 'Correlator %d parameters:' % (icorr),
+                 '           ',
+                r'$k_1$=%.9f ' % (self.k1[icorr] ),
+                r'$k_2$=%.9f ' % (self.k2[icorr] ),
+                r'$k_3$=%.9f ' % (self.k3[icorr] ),
+                r'$k_4$=%.9f ' % (self.k4[icorr] ),
+                    '           ',
+                r'$\mu_1$=%.9f ' % (self.mu1[icorr] ),
+                r'$\mu_2$=%.9f ' % (self.mu2[icorr] ),
+                r'$\mu_3$=%.9f ' % (self.mu3[icorr] ),
+                r'$\mu_4$=%.9f ' % (self.mu4[icorr] ),
+                    '           ',
+                r'$\Gamma_A$=' + self.latex_dirac_dict[self.typeA[icorr]],
+                r'$\Gamma_B$=' + self.latex_dirac_dict[self.typeB[icorr]],
+                    '           ',
+                r'$x_0$=%d' % self.x0[icorr],
+                r'$z_0$=%d' % self.z0[icorr],
+                 '           ',
+                 '           ',
+                 '           ',
+                 '           ',
+                 'Simulation parameters:',
+                 '           ',
+                r'$N_{NOISE}$=%d' % self.nnoise,
+                 'Noise Type=%s' % self.noise_dict[self.noise_type],
+                 'Random Conf=%d' % self.random_conf,
+                r'$T$=%d' % self.tvals,
+                r'$c_{SW}$=%.9f ' % self.csw,
+                r'$c_F$=%.9f' % self.cf,
+                 '           ',
+                 '           ',
+                 '           ',
+                 'Configurations:',
+                 '           ',
+                r'$N_{CONF}$=%d' % self.nconf,)) )
 
 
         #initialization completed
@@ -329,8 +373,13 @@ class run:
             print(f" - x0 = {self.x0[i]}\n")
             print(f" - z0 = {self.z0[i]}\n\n\n")
 
-    #method for the analysis of the std vs the binsize
-    def std_study(self,first_conf=0,last_conf=None,step_conf=1,show=False,save=True):
+    #method for the analysis of the std vs the binsize (TO DO: HANDLE WARNINGS !!!)
+    def std_study(self,first_conf=0,last_conf=None,step_conf=1,
+                  show=False,save=True,verbose=True,subdir_name="stdAnalysis_plots"):
+
+        #creation of subdir where to save plots
+        subdir = self.plot_dir+"/" + subdir_name
+        Path(subdir).mkdir(parents=True, exist_ok=True)
 
         #by default the last_configuration considered is the nconf-th one
         if last_conf is None:
@@ -351,10 +400,14 @@ class run:
         #choice of binning: divisors of number of configurations
         deltaList = [delta for delta in divisors(new_nconf) if delta < new_nconf/10]
 
+        #output info
+        if verbose:
+            print("\nMaking std analysis plots for each correlator...\n")
+
         #we now loop over all the correlators, for each one we compute the std using the jackknife method and then we make a plot
 
         #loop over the correlators
-        for icorr in range(self.ncorr):
+        for icorr in tqdm(range(self.ncorr)):
 
             #we initialize the array in which we store the normalized std
 
@@ -455,59 +508,571 @@ class run:
             
 
             #Display text box with frelevant parameters outside the plot
-            textstr = '\n'.join((
-                 'Correlator %d parameters:' % (icorr),
-                 '           ',
-                r'$k_1$=%.9f ' % (self.k1[icorr] ),
-                r'$k_2$=%.9f ' % (self.k2[icorr] ),
-                r'$k_3$=%.9f ' % (self.k3[icorr] ),
-                r'$k_4$=%.9f ' % (self.k4[icorr] ),
-                    '           ',
-                r'$\mu_1$=%.9f ' % (self.mu1[icorr] ),
-                r'$\mu_2$=%.9f ' % (self.mu2[icorr] ),
-                r'$\mu_3$=%.9f ' % (self.mu3[icorr] ),
-                r'$\mu_4$=%.9f ' % (self.mu4[icorr] ),
-                    '           ',
-                r'$\Gamma_A$=' + self.latex_dirac_dict[self.typeA[icorr]],
-                r'$\Gamma_B$=' + self.latex_dirac_dict[self.typeB[icorr]],
-                    '           ',
-                r'$x_0$=%d' % self.x0[icorr],
-                r'$z_0$=%d' % self.z0[icorr],
-                 '           ',
-                 '           ',
-                 '           ',
-                 '           ',
-                 'Simulation parameters:',
-                 '           ',
-                r'$N_{NOISE}$=%d' % self.nnoise,
-                 'Noise Type=%s' % self.noise_dict[self.noise_type],
-                 'Random Conf=%d' % self.random_conf,
-                r'$T$=%d' % self.tvals,
-                r'$c_{SW}$=%.9f ' % self.csw,
-                r'$c_F$=%.9f' % self.cf,
-                 '           ',
-                 '           ',
-                 '           ',
-                 'Configurations:',
-                 '           ',
-                r'$N_{CONF}$=%d' % self.nconf,))
-
-
             props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
             # place the text box in upper left in axes coords
-            plt.text(1.01, 0.95, textstr, transform=ax.transAxes, fontsize=7,
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax.transAxes, fontsize=7,
                     verticalalignment='top', bbox=props)
-            
-            
             
             
             #save figure
             if save:
                 fig_name = f"stdVSbin_corr{icorr}_{self.run_name}.png"
-                plt.savefig(self.plot_dir+"/"+fig_name)
+                plt.savefig(subdir+"/"+fig_name)
 
-            #show figure
-            if show:
-                plt.show()
+        #output info
+        if verbose:
+            print("\nAll plots done!\n")
+        
+        #if show is given open one png inside the dir
+        if show==True:
+        
+            png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
+            for png in png_list[:1]:
+                os.system("xdg-open "+subdir+'/'+png)    
+
+    
+
+    #method to plot the five correlators for each configuration
+    def allConf_plot(self,first_conf=0,last_conf=None,step_conf=1,
+                     first_time=0,last_time=None,
+                     show=False,save=True,verbose=True,subdir_name="all_configurations"):
+        
+        #creation of subdir where to save plots
+        subdir = self.plot_dir+"/"+subdir_name
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        #by default the last_configuration considered is the nconf-th one
+        if last_conf is None:
+            last_conf = self.nconf
+
+        #by default the last time on the plot (on the x axis) is the number of tvals
+        if last_time is None:
+            last_time = self.tvals
+
+        #creation of array of x values (for each plot)
+        if last_time<0:
+            times = np.arange(first_time,self.tvals+last_time)
+        else:
+            times = np.arange(first_time,last_time)
+
+        #we take the selected slice of correlator data
+        correlators = self.all_3pCorr[:,:,:,:,first_time:last_time]
+
+        #we perform the noise average
+        correlators_navg = correlators.mean(axis=-1).mean(axis=-1)
+
+        #arrays used in the plots
+        corr_lab = ["Connected","Disconnected","Total"]
+        corr_colors = ["red","blue","purple"]
 
 
+        #printo status info if verbose
+        if verbose:
+            print("\nMaking plot for each configuration...\n")
+
+        #loop over the configurations to be plotted
+        for iconf in tqdm(range(first_conf,last_conf,step_conf)):
+
+            #loop over all correlators
+            for icorr in range(self.ncorr):
+
+                #create figure and axis
+                fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+                #loop over plot, one for each of the 5 operators
+                for iop,op_name in enumerate(self.op_names):
+
+                    #the correlators we want to plot are connected, disconnected and total
+                    conn_corr = correlators_navg[iconf,0,icorr,iop].imag #conf - piece - corr - op
+                    disc_corr = correlators_navg[iconf,1,icorr,iop].imag
+                    tot_corr = conn_corr+disc_corr
+                    #we put them in a list
+                    corr_list = [conn_corr,disc_corr,tot_corr]
+
+                    #we plot everything
+                    for i_plot,corr in enumerate(corr_list):
+                        ax_list[iop].plot(times,corr,'-o',label=corr_lab[i_plot]+" im",color=corr_colors[i_plot],markersize=10,linewidth=0.5)
+
+                    #enable grid
+                    ax_list[iop].grid()
+
+                    #set title
+                    ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+                    #set y label
+                    ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                    #set legend
+                    ax_list[iop].legend(loc='right')
+
+                #adjust subplot spacing
+                plt.subplots_adjust(left=0.04,
+                                    bottom=0.05, 
+                                    right=0.9, 
+                                    top=0.9, 
+                                    wspace=0.4, 
+                                    hspace=0.6)
+
+                #set x label
+                #fig.supylabel("G(t)",rotation=0,fontsize=20)
+                plt.xlabel('Time [lattice units]',fontsize=16)
+
+                #set title
+                plt.suptitle(f'G(t) for parity odd operators - (Configuration {iconf}, Correlator {icorr})', fontsize=25,y=0.98,)
+
+                #Display text box with frelevant parameters outside the plot
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                # place the text box in upper left in axes coords
+                plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                        verticalalignment='top', bbox=props)
+
+                #save figure
+                if save:
+                    fig_name = f"plot_conf{iconf}_corr{icorr}_{self.run_name}.png"
+                    plt.savefig(subdir+"/"+fig_name)                    
+
+                #once the plot is created terminate it
+                plt.close()
+
+        if verbose:
+            print("\nAll plots done!\n")
+
+        #if show is given open one png inside the dir
+        if show==True:
+        
+            png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
+            for png in png_list[:1]:
+                os.system("xdg-open "+subdir+'/'+png)
+
+
+    #method to plot the five correlators for each configuration
+    def preliminary_plots(self,first_time=0,last_time=None,
+                          first_conf=0,last_conf=None,binsize=1,
+                          show=False,save=True,verbose=True,subdir_name="preliminary_plots"):
+        
+        #creation of subdir where to save plots
+        subdir = self.plot_dir+"/"+subdir_name
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        #by default the last_configuration considered is the nconf-th one
+        if last_conf is None:
+            last_conf = self.nconf
+
+        #check that the parameters 
+        if (last_conf-first_conf)%binsize != 0:
+            print("\nlast_conf-first_conf should be a multiple integer of binsize!\n")
+            return
+
+        #by default the last time on the plot (on the x axis) is the number of tvals
+        if last_time is None:
+            last_time = self.tvals
+
+        
+
+        #creation of array of x values (for each plot)
+        if last_time<0:
+            times = np.arange(first_time,self.tvals+last_time)
+        else:
+            times = np.arange(first_time,last_time)
+
+        #we take the selected slice of correlator data
+        correlators3p = self.all_3pCorr[:,:,:,:,first_time:last_time] #conf - piece - corr - op - tval - noise - noise
+        correlators2px = self.all_2pCorr_x[:,:,first_time:last_time] #conf - corr - tval - noise
+        correlators2pz = self.all_2pCorr_z[:,:,first_time:last_time]
+
+        #we perform the noise average
+        correlators3p_navg = correlators3p.mean(axis=-1).mean(axis=-1)
+        correlators2px_navg = correlators2px.mean(axis=-1)
+        correlators2pz_navg = correlators2pz.mean(axis=-1)
+
+        #for the 3 point corr we consider also the total correlator
+        correlators3p_navg_tot = correlators3p_navg[:,0,:,:,:] + correlators3p_navg[:,1,:,:,:]
+
+        #creation of jack replicates
+        jack_replicates_x = np.asarray( [np.delete(correlators2px_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0).mean(axis=0) for iconf in range(first_conf,last_conf,binsize)] )
+        jack_replicates_z = np.asarray( [np.delete(correlators2pz_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0).mean(axis=0) for iconf in range(first_conf,last_conf,binsize)] )
+        jack_replicates_3 = np.asarray( [np.delete(correlators3p_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0).mean(axis=0) for iconf in range(first_conf,last_conf,binsize)] )
+        jack_replicates_3_tot = np.asarray( [np.delete(correlators3p_navg_tot, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0).mean(axis=0) for iconf in range(first_conf,last_conf,binsize)] )
+
+        #jacknife estimator of mean
+        jack_mean_x = jack_replicates_x.mean(axis=0)
+        jack_mean_z = jack_replicates_z.mean(axis=0)
+        jack_mean_3 = jack_replicates_3.mean(axis=0)
+        jack_mean_3_tot = jack_replicates_3_tot.mean(axis=0)
+
+        #number of replicates
+        nrepl = np.shape(jack_replicates_3)[0]
+
+        #jacknife estimator of std, looking at re and im part
+        jack_std_x_re = np.sqrt(nrepl-1) * np.std(jack_replicates_x.real,axis=0)
+        jack_std_z_re = np.sqrt(nrepl-1) * np.std(jack_replicates_z.real,axis=0)
+        jack_std_3_re = np.sqrt(nrepl-1) * np.std(jack_replicates_3.real,axis=0)
+        jack_std_3_im = np.sqrt(nrepl-1) * np.std(jack_replicates_3.imag,axis=0)
+        jack_std_3_tot_re = np.sqrt(nrepl-1) * np.std(jack_replicates_3_tot.real,axis=0)
+        jack_std_3_tot_im = np.sqrt(nrepl-1) * np.std(jack_replicates_3_tot.imag,axis=0)
+        jack_std_3_tot_abs = np.sqrt(nrepl-1) * np.std(np.abs(jack_replicates_3_tot),axis=0)
+
+        #output info
+        if verbose:
+            print("\nMaking preliminary plots for each correlator...\n")
+
+        #we now loop over each correlator and for each we do a series of plots
+
+        #loop over correlators
+        for icorr in tqdm(range(self.ncorr)):
+
+            ##############  plot number 1: comparison of connected and disconnected piece (by looking at imag part) ########################
+
+            #create figure and axis
+            fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+            #loop over plot, one for each of the 5 operators
+            for iop,op_name in enumerate(self.op_names):
+            
+                #compute connected, disconnected and total correlator
+                conn_corr = jack_mean_3[0,icorr,iop,:].imag #piece - corr - op - t
+                disc_corr = jack_mean_3[1,icorr,iop,:].imag
+                tot_corr = jack_mean_3_tot[icorr,iop,:].imag #corr - op - t
+
+                #compute variance
+                conn_std = jack_std_3_im[0,icorr,iop,:]
+                disc_std = jack_std_3_im[1,icorr,iop,:]
+                tot_std = jack_std_3_tot_im[icorr,iop,:].imag #corr - op - t
+
+                #array for connected,disconnected,total correaltors
+                corr_list = [conn_corr,disc_corr,tot_corr]
+                std_list = [conn_std,disc_std,tot_std]
+                corr_lab = ["Connected","Disconnected","Total"]
+                corr_colors = ["red","blue","purple"]
+
+                #plot 3 pieces
+                for ipiece,corr_piece in enumerate(corr_list):
+                    ax_list[iop].errorbar(times,corr_piece,yerr=std_list[ipiece],marker='o',linestyle='solid',label=corr_lab[ipiece],color=corr_colors[ipiece],markersize=10,linewidth=0.5,elinewidth=2)
+
+                #enable grid
+                ax_list[iop].grid()
+
+                #set title
+                ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+                #set y label
+                ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                #set legend
+                ax_list[iop].legend(loc='right')
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'Im[G(t)] for parity odd operators - Correlator {icorr} - Connected, Disconnected and Total using Jackknife Method', fontsize=25,y=0.98)
+
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_conn-disc_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+            #once the plot is created terminate it
+            plt.close()
+
+
+            ##############  plot number 2: comparison of real and imaginary part (by looking at total correlator) #####################ààà
+
+            #create figure and axis
+            fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+            #loop over plot, one for each of the 5 operators
+            for iop,op_name in enumerate(self.op_names):
+            
+                #real imag and modulus of total correlator
+                re_corr = jack_mean_3_tot[icorr,iop,:].real #corr - op - t
+                imag_corr = jack_mean_3_tot[icorr,iop,:].imag 
+                mod_corr = np.abs(jack_mean_3_tot[icorr,iop,:])
+
+                #compute variance
+                re_std = jack_std_3_tot_re[icorr,iop,:]
+                im_std = jack_std_3_tot_im[icorr,iop,:]
+                mod_std = jack_std_3_tot_abs[icorr,iop,:]
+
+                #array for connected,disconnected,total correaltors
+                corr_list = [re_corr,imag_corr,mod_corr]
+                std_list = [re_std,im_std,mod_std]
+                corr_lab = ["Real","Imaginary","Modulus"]
+                corr_colors = ["red","blue","purple"]
+
+                #plot 3 pieces
+                for ipiece,corr_piece in enumerate(corr_list):
+                    ax_list[iop].errorbar(times,corr_piece,yerr=std_list[ipiece],marker='o',label=corr_lab[ipiece],color=corr_colors[ipiece],markersize=10,linewidth=0.5,elinewidth=2)
+
+                #enable grid
+                ax_list[iop].grid()
+
+                #set title
+                ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+                #set y label
+                ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                #set legend
+                ax_list[iop].legend(loc='right')
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            #fig.supylabel("G(t)",rotation=0,fontsize=20)
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'Total G(t) for parity odd operators - Correlator {icorr} - Real, Imaginary and Modulus using Jackknife Method', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot
+
+            #textstr is defined above
+
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_re-im_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+            #once the plot is created terminate it
+            plt.close()
+
+
+            ##############  plot number 3: comparison of jacknife replicates ########################
+
+            #create figure and axis
+            fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+            #loop over plot, one for each of the 5 operators
+            for iop,op_name in enumerate(self.op_names):
+
+                for irep in range(nrepl):
+                    lbl = None
+                    if irep == nrepl-1:
+                        lbl = "Jackknife Replicates"
+                    ax_list[iop].plot(times,jack_replicates_3_tot[irep,icorr,iop,:].imag,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+
+                #mean and std with jackknife method
+                mean_corr = jack_mean_3_tot[icorr,iop,:].imag 
+                std_corr = jack_std_3_tot_im[icorr,iop,:]
+
+                #make the plot
+                ax_list[iop].errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+                #enable grid
+                ax_list[iop].grid()
+
+                #set title
+                ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+                #set y label
+                ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                #set legend
+                ax_list[iop].legend(loc='right')
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'Total Im[G(t)] for parity odd operators - Correlator {icorr} - Jackknife Replicates and Jackknife Mean', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_jack_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+            #once the plot is created terminate it
+            plt.close()
+
+
+
+            ##############  plot number 4: comparison of configuration with jackknife mean #####################ààà
+
+            #create figure and axis
+            fig, ax_list = plt.subplots(nrows=5, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+            #loop over plot, one for each of the 5 operators
+            for iop,op_name in enumerate(self.op_names):
+
+                for iconf in range(self.nconf):
+                    lbl = None
+                    if iconf == self.nconf-1:
+                        lbl = "Configurations (no Jackknife)"
+                    ax_list[iop].plot(times,correlators3p_navg_tot[iconf,icorr,iop,:].imag,'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+
+                #mean and std with jackknife method
+                mean_corr = jack_mean_3_tot[icorr,iop,:].imag 
+                std_corr = jack_std_3_tot_im[icorr,iop,:]
+
+                #plot the mean
+                ax_list[iop].errorbar(times,mean_corr,yerr=std_corr,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+                #enable grid
+                ax_list[iop].grid()
+
+                #set title
+                ax_list[iop].set_title(op_name,fontsize=15,weight="bold")
+
+                #set y label
+                ax_list[iop].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                #set legend
+                ax_list[iop].legend(loc='right')
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'Total Im[G(t)] for parity odd operators - Correlator {icorr} - All Configurations and Jackknife Mean', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot
+
+            #textstr is defined above    
+
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_jack_corr{icorr}_allconf_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+            #once the plot is created terminate it
+            plt.close()
+
+
+            
+
+            ##############  plot number 5: 2 points func #####################
+
+            #create figure and axis
+            fig, ax_list = plt.subplots(nrows=2, ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+            #plot the 2 point with source in x0
+
+            ax_list[0].errorbar(times,np.abs(jack_mean_x[icorr,:].real),yerr=jack_std_x_re[icorr,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+            #enable grid
+            ax_list[0].grid()
+            #set title
+            ax_list[0].set_title(r"With source in $x_0$",fontsize=15,weight="bold")
+            #set y label
+            ax_list[0].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+            #plot all conf
+            for iconf in range(self.nconf):
+                lbl = None
+                if iconf == self.nconf-1:
+                    lbl = "Configurations (no Jackknife)"
+                ax_list[0].plot(times,np.abs(correlators2px_navg[iconf,icorr,:].real),'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+            #set legend
+            ax_list[0].legend(loc='right')
+
+            #plot the 2 point with source in z0
+
+            ax_list[1].errorbar(times,np.abs(jack_mean_z[icorr,:].real),yerr=jack_std_z_re[icorr,:],marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+            #enable grid
+            ax_list[1].grid()
+            #set title
+            ax_list[1].set_title(r"With source in $z_0$",fontsize=15,weight="bold")
+            #set y label
+            ax_list[1].set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+            #plot all conf
+            for iconf in range(self.nconf):
+                lbl = None
+                if iconf == self.nconf-1:
+                    lbl = "Configurations (no Jackknife)"
+                ax_list[1].plot(times,np.abs(correlators2pz_navg[iconf,icorr,:].real),'-o',markersize=7,linewidth=0.5,alpha=0.4,color="red",label=lbl)
+            #set legend
+            ax_list[1].legend(loc='right')
+
+            #set log scale (to observe exponential behaviour)
+            ax_list[1].set_yscale('log')
+            ax_list[0].set_yscale('log')
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'|Re[G(t)]| for 2 point correlator - Correlator {icorr}', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot #texstr defined before
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_2point_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+            #once the plot is created terminate it
+            plt.close()
+
+        #output info
+        if verbose:
+            print("\nAll plots done!\n")
+
+
+        #if show is given open one png inside the dir
+        if show==True:
+        
+            png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
+            for png in png_list[:1]:
+                os.system("xdg-open "+subdir+'/'+png)    
