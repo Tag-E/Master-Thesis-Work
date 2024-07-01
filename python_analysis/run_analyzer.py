@@ -1075,4 +1075,141 @@ class run:
         
             png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
             for png in png_list[:1]:
-                os.system("xdg-open "+subdir+'/'+png)    
+                os.system("xdg-open "+subdir+'/'+png)
+
+
+
+    #method to plot separately the five operators for each correlator
+    def detailed_plots(self,first_time=0,last_time=None,
+                          first_conf=0,last_conf=None,binsize=1,
+                          show=False,save=True,verbose=True,subdir_name="detailed_plots"):
+        
+        #creation of subdir where to save plots
+        subdir = self.plot_dir+"/"+subdir_name
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        #by default the last_configuration considered is the nconf-th one
+        if last_conf is None:
+            last_conf = self.nconf
+
+        #check that the parameters 
+        if (last_conf-first_conf)%binsize != 0:
+            print("\nlast_conf-first_conf should be a multiple integer of binsize!\n")
+            return
+
+        #by default the last time on the plot (on the x axis) is the number of tvals
+        if last_time is None:
+            last_time = self.tvals
+
+        #creation of array of x values (for each plot)
+        if last_time<0:
+            times = np.arange(first_time,self.tvals+last_time)
+        else:
+            times = np.arange(first_time,last_time)
+
+        #we take the selected slice of correlator data
+        corr = self.all_3pCorr[:,:,:,:,first_time:last_time] #conf - piece - corr - op - tval - noise - noise
+
+        #we perform the noise average
+        corr_navg = corr.mean(axis=-1).mean(axis=-1)
+
+        #we consider the total correlator
+        corr_navg_tot = corr_navg[:,0,:,:,:] + corr_navg[:,1,:,:,:]
+
+        #we bin bin the correlators by averaging over an interval with size binsize
+        corr_binned = np.array([np.mean(corr_navg_tot[i*binsize:(i+1)*binsize],axis=0) for i in range(int((last_conf-first_conf)/binsize))])
+
+        #observable we're interested in when using the jackknife
+        test_statistic = np.mean
+
+        #we now loop over the correlators, over the 5 operators and each time we do a plot using the jackknife method
+
+        #loop over the correlators
+        for icorr in range(self.ncorr):
+
+
+            #output info
+            if verbose:
+                print(f"\nMaking plots for the correlator number {icorr} ...\n")
+
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names[iop]
+
+                #first let's compute mean and std using the jackknife
+
+                mean_array = np.empty(shape=np.shape(times),dtype=float)
+                std_array = np.empty(shape=np.shape(times),dtype=float)
+
+                #for each time we have a 1D array and we use the jackknife implementation of astropy
+                for t in range(len(times)):
+
+                    #jackknife with astropy
+
+                    #we choose as array the one spanning over the configurations (binned)
+                    data = corr_binned[:,icorr,iop,t].imag
+                
+                    #we compute mean and std using the jackknife
+                    estimate, _, stderr, _ = jackknife_stats(data, test_statistic, 0.95)
+                
+                    mean_array[t] = estimate
+                    std_array[t] = stderr
+
+                #now we do the plot
+
+                #create figure and axis
+                fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+                #we plot the correlator
+                ax.errorbar(times,mean_array,yerr=std_array,marker='o',label=r"Jackknife Mean $\pm$ std",color="black",markersize=10,linewidth=0.8,elinewidth=2)
+
+                #enable grid
+                ax.grid()
+
+                #set y label
+                ax.set_ylabel("G(t)",rotation=0,labelpad=20,fontsize=16)
+
+                #set legend
+                ax.legend(loc='right')
+
+
+                #adjust subplot spacing
+                plt.subplots_adjust(left=0.04,
+                                    bottom=0.05, 
+                                    right=0.9, 
+                                    top=0.9, 
+                                    wspace=0.4, 
+                                    hspace=0.6)
+
+                #set x label
+                plt.xlabel('Time [lattice units]',fontsize=16)
+
+                #set title
+                plt.suptitle(f'Total Im[G(t)] for {op_name} operator - Correlator {icorr} - Zoom on Plateau', fontsize=25,y=0.98)
+
+                #Display text box with frelevant parameters outside the plot
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                # place the text box in upper left in axes coords
+                plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax.transAxes, fontsize=14,
+                        verticalalignment='top', bbox=props)
+
+                #save figure
+                if save:
+                    fig_name = f"plot_plateau_{self.op_names_simple[iop]}_corr{icorr}_{self.run_name}.png"
+                    plt.savefig(subdir+"/"+fig_name)
+
+
+        #output info
+        if verbose:
+            print("\nAll plots done!\n")
+
+
+        #if show is given open one png inside the dir
+        if show==True:
+        
+            png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
+            for png in png_list[:1]:
+                os.system("xdg-open "+subdir+'/'+png)

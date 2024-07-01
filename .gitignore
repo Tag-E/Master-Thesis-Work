@@ -35,3 +35,4 @@ xsf-stuff/
 python_analysis/plots/
 python_analysis/*.png
 python_analysis/__pycache__
+python_analysis/__pycache__/*.pyc
