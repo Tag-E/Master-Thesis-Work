@@ -34,6 +34,8 @@ mesons-master/q.log
 mesons-master/todo.txt
 xsf-stuff/
 python_analysis/plots/
+python_analysis/matrix_element_first_analysis/
+python_analysis/matrix_element_second_analysis/
 python_analysis/*.png
 python_analysis/__pycache__
 python_analysis/__pycache__/*.pyc
