@@ -8,6 +8,7 @@ mesons-master/build/*.o
 mesons-master/build/*.d
 mesons-master/build/mesons
 mesons-master/build/tm_mesons
+mesons-master/build/tm_mesons_original
 mesons-master/build/4fop_tm_mesons
 mesons-master/build/deltaF2_4fop_3PointFunc
 mesons-master/build/salg_tests

@@ -1,0 +1,17 @@
+Some observations about tm_mesons.c
+
+-1) first of all, in order to compile locally on my machine the Makefile needed to be modified, in particular the lines containing the definitions of the variables MPI_HOME and GCC have been uncommented and the the variables MPI_HOME and GCC have been modified as to match the specific of the installation path of MPI on my machine
+(to run on cluster, MPI and GCC uncommented, MPI modified)
+
+-2) with a working Makefile the following errors arise at compilation time:
+	- [-Werror=format-overflow=] : this is due to the fact that the variables containing the names of the files (log_dir,loc_dir ecc.) are all char arrays with a lenght of NAME_SIZE while in the
+	function setup_files with the calls to sprintf some of them are assigned to a string that could in principle be longer than NAME_SIZE; this isn't really a problem since a check on the lenght is
+	made in	the setup_files function, so to compile either the -Werror flag has to be suppressed or the lenght of the arrays containing the names of the variables have to be extended
+	
+	- [-Werror=maybe-uninitialized] : this warning is given by the print of the uninitialized variable tm.eoflg on line 1112 in the print_info function; to solve the problem either the print of the
+	tm.eoflg variable along with the declaration of tm need to be commented or a line with the initialization ( tm=tm_parms(); ) needs to be added between the declaration of tm and the print of tm
+	eoflg inside the print_info function, or alternatively one could also suppress the -Werror flag and ignore the warning
+   Since I wanted to check the correct behaviour of the original code received in order to compile I have just suppressed the -Werror flag, without modifying the code
+
+-5) Some additinal notes:
+	- in the read_lat_parms the variables csw, cF and eoflg are broadcasted twice, first at lines 521-525 and then again at lines 654-658

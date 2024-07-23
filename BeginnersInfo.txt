@@ -5,7 +5,7 @@ Guide to the code for beginners. Follow the following stes.
 2) Modify the number of processes of the QCD simulation as to match the number of cores (CPU) on your device
     - run (on linux) "nproc --all" to see how many processors you have on your device
     - go to  mesons-master > include > global.h (not openQCD-1.2 > include > global.h)
-    - make sure that NPROC0 * NPROC1 * NPROC2 * NPROC3 is equalto or lower than the number of processors you have available (with each Nproc being an integer multiple of 2)
+    - make sure that NPROC0 * NPROC1 * NPROC2 * NPROC3 is equal to or lower than the number of processors you have available (with each Nproc being an integer multiple of 2)
     - if that is not the case modify NPROC0, NPROC1, NPROC2, NPROC3
 
 3) Modify the makefile in mesons-master as to match the specifics of your device
