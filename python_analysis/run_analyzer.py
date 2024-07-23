@@ -1439,6 +1439,157 @@ class run:
                         file.write(f"{self.matrix_element[icorr,iop]} {self.matrix_element_std[icorr,iop]}\n")
 
 
+    #method for the analysis of the std vs the binsize (TO DO: HANDLE WARNINGS !!!)
+    def std_study_detailed(self,first_conf=0,last_conf=None,step_conf=1,times=None,
+                           show=False,save=True,verbose=True,subdir_name="stdAnalysis_plots"):
+
+        #creation of subdir where to save plots
+        subdir = self.plot_dir+"/" + subdir_name
+        Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        #by default the last_configuration considered is the nconf-th one
+        if last_conf is None:
+            last_conf = self.nconf
+
+        #by default, if the times chosen to be ploted are not specified, three of them are chosen accordingly to tvals
+        if times is None:
+            times = [t for t in range(5,self.tvals,int(self.tvals/3))]
+
+        #we take the selected slice of correlator, we sum connected and disconnected part and we look only at the imaginary part
+        corr_3p = ( self.all_3pCorr[first_conf:last_conf:step_conf,0,:,:,:,:,:] + self.all_3pCorr[first_conf:last_conf:step_conf,1,:,:,:,:,:] ).imag
+
+        #current nconf considered
+        new_nconf = np.shape(corr_3p)[0]
+
+        #we perform the noise average
+        corr_3p_navg = corr_3p.mean(axis=-1).mean(axis=-1)
+
+        #choice of binning: divisors of number of configurations
+        deltaList = [delta for delta in divisors(new_nconf) if delta < new_nconf/10]
+
+        #output info
+        if verbose:
+            print("\nMaking std analysis plots for each correlator...\n")
+
+
+        #we now loop over the available binsize and we compute the std according to the jackknife method
+
+        #we initialize the array where the std will be stored
+        std_array = np.empty(shape=(len(deltaList),self.ncorr,self.noperators,self.tvals),dtype=float)
+
+        #loop over the available binsizes
+        for i,delta in enumerate(deltaList):
+    
+            #creation of list of elements to be deleted
+            delete_list = [list(range(iconf,min(iconf+delta,new_nconf))) for iconf in range(0,new_nconf,delta)]
+
+            #first the creation of the subsamples
+            corr_3p_navg_resamp = np.asarray( [np.delete(corr_3p_navg, ith_delete ,axis=0) for ith_delete in delete_list] )
+
+            #the number of resamples is
+            nresamples = int(new_nconf/delta) # = np.shape(corr_3p_navg_resamp)[0]
+    
+            #we average over the gauge configurations
+            corr_3p_navg_resamp_gavg = corr_3p_navg_resamp.mean(axis=1)
+    
+
+            #to do so we compute also the gauge averages on the whole dataset
+            corr_3p_navg_gavg = corr_3p_navg.mean(axis=0)
+
+            #then we compute estimate and bias with the jackknife, for each operator and for each time
+
+            #the estimate is the average over the resamples
+            estimate_biased = np.mean(corr_3p_navg_resamp_gavg,axis=0) #the mean is computed along the replicas axis
+
+            #the bias is the following difference between the mean of the replicates and the mean on the whole dataset
+            bias = (nresamples-1) * (estimate_biased-corr_3p_navg_gavg)
+
+            #the std is given by the following formula (variance of replicates times n-1)
+            std = np.sqrt( (nresamples-1)/nresamples * np.sum( (corr_3p_navg_resamp_gavg - estimate_biased)**2,axis=0 ) )
+
+            #then we correct the estimate for the bias
+            estimate = estimate_biased-bias
+
+            #we store the std
+            std_array[i] = std / np.abs(estimate)
+        
+
+        #now that we have all the data, we loop over all the correlators, and the operators and for each we make a plot
+
+        #loop over the correlators
+        for icorr in range(self.ncorr):
+
+            #output info
+            if verbose:
+                print(f"\nMaking plots for the correlator number {icorr} ...\n")
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names[iop]
+
+
+                #create the figure for the given icorr and iop
+                fig, ax_list = plt.subplots(nrows=len(times), ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+                #adjust subplot spacing
+                plt.subplots_adjust(left=0.1,
+                                    bottom=0.1, 
+                                    right=0.87, 
+                                    top=0.9, 
+                                    wspace=0.4, 
+                                    hspace=0.6)
+    
+
+                #for each time we have a different sublot
+                for i,t in enumerate(times):
+
+                    #plot the data
+                    ax_list[i].plot(deltaList,std_array[:,icorr,iop,t],'-o',linewidth=0.1,color='blue')
+
+                    #set title
+                    ax_list[i].set_title(f"t = {t}",fontsize=15,weight="bold")
+
+                    #set y label
+                    ax_list[i].set_ylabel(r"$\sigma$ / $|\mu|$",rotation=90,labelpad=23,fontsize=18)
+
+                    #set x ticks
+                    ax_list[i].set_xticks(deltaList)
+                    ax_list[i].tick_params(axis='both', which='major', labelsize=12)
+
+                plt.xlabel(r"Binsize $\Delta$",fontsize=18,labelpad=23)
+
+                plt.suptitle(r"Normalized Standard Deviation as a function of the binsize $\Delta$" + f' - Correlator {icorr} - Operator {op_name}', fontsize=23)
+
+
+            
+            
+
+                #Display text box with frelevant parameters outside the plot
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                # place the text box in upper left in axes coords
+                plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,verticalalignment='top', bbox=props)
+            
+            
+                #save figure
+                if save:
+                    fig_name = f"stdVSbin_corr{icorr}_{self.op_names_simple[iop]}_{self.run_name}.png"
+                    plt.savefig(subdir+"/"+fig_name)
+
+
+        #output info
+        if verbose:
+            print("\nAll plots done!\n")
+        
+        #if show is given open one png inside the dir
+        if show==True:
+        
+            png_list = [f for f in listdir(subdir) if f.endswith('png') and isfile(join(subdir, f) )]
+            for png in png_list[:1]:
+                os.system("xdg-open "+subdir+'/'+png) 
+
+
 
 
 
