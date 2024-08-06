@@ -380,12 +380,16 @@ class run:
             print(f" - z0 = {self.z0[i]}\n\n\n")
 
     #method for the analysis of the std vs the binsize (TO DO: HANDLE WARNINGS !!!)
-    def std_study(self,first_conf=0,last_conf=None,step_conf=1,
+    def std_study(self,first_conf=0,last_conf=None,step_conf=1,times=None,
                   show=False,save=True,verbose=True,subdir_name="stdAnalysis_plots"):
 
         #creation of subdir where to save plots
         subdir = self.plot_dir+"/" + subdir_name
         Path(subdir).mkdir(parents=True, exist_ok=True)
+
+        #by default, if the times chosen to be ploted are not specified, three of them are chosen accordingly to tvals
+        if times is None:
+            times = [t for t in range(5,self.tvals,int(self.tvals/3))]
 
         #by default the last_configuration considered is the nconf-th one
         if last_conf is None:
@@ -413,7 +417,7 @@ class run:
         #we now loop over all the correlators, for each one we compute the std using the jackknife method and then we make a plot
 
         #loop over the correlators
-        for icorr in tqdm(range(self.ncorr)):
+        for icorr in range(self.ncorr):
 
             #we initialize the array in which we store the normalized std
 
@@ -422,8 +426,13 @@ class run:
             std_list_boot = []     
             std_list_simple = []
 
+            #array with all the std for each delta
+            allstd_jack = np.empty(shape=(len(deltaList),self.noperators,self.tvals),dtype=float)
+            allstd_boot = np.empty(shape=(len(deltaList),self.noperators,self.tvals),dtype=float)
+            allstd_simple = np.empty(shape=(len(deltaList),self.noperators,self.tvals),dtype=float)
+
             #loop over the possible deltas (size of deleted elements)
-            for delta in deltaList:
+            for i_d,delta in enumerate(deltaList):
 
                 #the axis with the configuration is now replaced with an axis with averages of configurations: 
                 #   - the lenght of the axis passes from nconf to nconf/delta (that is an int by construction)
@@ -477,14 +486,24 @@ class run:
 
                 #computation of mean and std without using the jackknife or the bootstrap (simple mean estimation)
                 mean_array_simple = np.mean(corr_binned,axis=0) 
-                std_array_simple = np.std(corr_binned,axis=0) /np.sqrt(np.shape(corr_binned)[0]-1)
+                std_array_simple = np.std(corr_binned.imag,axis=0) /np.sqrt(np.shape(corr_binned)[0]-1)
 
                 #we now append to the std list the mean relative error
-                std_list_simple.append(np.mean( (std_array_simple/np.abs(mean_array_simple))[:,1:-2] ))
+                std_list_simple.append(np.mean( (std_array_simple/np.abs(mean_array_simple.imag))[:,1:-2] ))
+
+                allstd_jack[i_d] = (std_array_jack/np.abs(mean_array_jack))[:]
+                allstd_boot[i_d] = (std_array_boot/np.abs(mean_array_boot))[:]
+                allstd_simple[i_d] = (std_array_simple/np.abs(mean_array_simple.imag))[:]
 
             #now that we have all the std for each size of the bin (delta) we can make the plot of std vs delta
 
             ### make plot ###
+
+
+            #output info
+            if verbose:
+                print(f"\nMaking plots for the correlator number {icorr} ...\n")
+
 
             #create figure and axis
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(12, 6))
@@ -498,9 +517,9 @@ class run:
                                 hspace=0.6)
 
 
-            ax.plot(deltaList,std_list_jack,'-o',linewidth=0.1,color='blue',label='Jackknife Estimate')
-            ax.plot(deltaList,std_list_boot,'-o',linewidth=0.1,color='green',label='Bootstrap Estimate')
-            ax.plot(deltaList,std_list_simple,'-o',linewidth=0.1,color='red',label='Simple Estimate')
+            ax.plot(deltaList,std_list_jack,'-o',linewidth=0.4,alpha=0.7,markersize=9.5,color='blue',label='Jackknife Estimate')
+            ax.plot(deltaList,std_list_boot,'-o',linewidth=0.25,alpha=0.7,markersize=8,color='green',label='Bootstrap Estimate')
+            ax.plot(deltaList,std_list_simple,'-o',linewidth=0.1,alpha=0.7,markersize=6.5,color='red',label='Simple Estimate')
             ax.set_xticks(deltaList)
             ax.tick_params(axis='both', which='major', labelsize=8)
 
@@ -524,6 +543,72 @@ class run:
             if save:
                 fig_name = f"stdVSbin_corr{icorr}_{self.run_name}.png"
                 plt.savefig(subdir+"/"+fig_name)
+
+
+            # make other plots
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names[iop]
+
+                #create the figure for the given icorr and iop
+                fig, ax_list = plt.subplots(nrows=len(times), ncols=1, sharex=True, sharey=False, figsize=(32, 14))
+
+                #adjust subplot spacing
+                plt.subplots_adjust(left=0.1,
+                                    bottom=0.1, 
+                                    right=0.87, 
+                                    top=0.9, 
+                                    wspace=0.4, 
+                                    hspace=0.6)
+    
+
+                #for each time we have a different subplot
+                for i,t in enumerate(times):
+
+                    #plot the data
+                    ax_list[i].plot(deltaList,allstd_jack[:,iop,t],'-o',linewidth=0.4,alpha=0.7,markersize=9.5,color='blue',label='Jackknife Estimate')
+                    ax_list[i].plot(deltaList,allstd_boot[:,iop,t],'-o',linewidth=0.25,alpha=0.7,markersize=8,color='green',label='Bootstrap Estimate')
+                    ax_list[i].plot(deltaList,allstd_simple[:,iop,t],'-o',linewidth=0.1,alpha=0.7,markersize=6.5,color='red',label='Simple Estimate')
+
+
+
+
+                    #set title
+                    ax_list[i].set_title(f"t = {t}",fontsize=15,weight="bold")
+
+                    #set y label
+                    ax_list[i].set_ylabel(r"$\sigma$ / $|\mu|$",rotation=90,labelpad=23,fontsize=18)
+
+                    #set x ticks
+                    ax_list[i].set_xticks(deltaList)
+                    ax_list[i].tick_params(axis='both', which='major', labelsize=12)
+
+                    #show legend
+                    ax_list[i].legend()
+
+                plt.xlabel(r"Binsize $\Delta$",fontsize=18,labelpad=23)
+
+                plt.suptitle(r"Normalized Standard Deviation as a function of the binsize $\Delta$" + f' - Correlator {icorr} - Operator {op_name}', fontsize=23)
+
+
+            
+            
+
+                #Display text box with frelevant parameters outside the plot
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                # place the text box in upper left in axes coords
+                plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax_list[0].transAxes, fontsize=14,verticalalignment='top', bbox=props)
+            
+            
+                #save figure
+                if save:
+                    fig_name = f"stdVSbin_jbs_corr{icorr}_{self.op_names_simple[iop]}_{self.run_name}.png"
+                    plt.savefig(subdir+"/"+fig_name)
+
+
 
         #output info
         if verbose:
@@ -1542,7 +1627,7 @@ class run:
                                     hspace=0.6)
     
 
-                #for each time we have a different sublot
+                #for each time we have a different subplot
                 for i,t in enumerate(times):
 
                     #plot the data
