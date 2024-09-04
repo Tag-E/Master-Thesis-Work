@@ -1418,6 +1418,13 @@ class run:
         #then we correct the estimate for the bias
         matele = matele_estimate-bias
 
+        #compute the covariance matrix
+        cov_mat = np.empty(shape=(self.ncorr,self.noperators,self.tvals,self.tvals),dtype=float)
+        for t1 in range(self.tvals):
+            for t2 in range(self.tvals):
+                cov_mat[:,:,t1,t2] = (nresamples-1)/nresamples * np.sum( (matele_replicas[:,:,:,t1] - matele_estimate[:,:,t1]) * (matele_replicas[:,:,:,t2] - matele_estimate[:,:,t2]),axis=0 )
+
+
 
         #we now loop over the correlators, over the 5 operators and each time we do a plot using the jackknife method
 
@@ -1432,7 +1439,8 @@ class run:
 
             #first we determine which is the plateau region
             for icut in range(1,int(self.tvals/2)):
-                if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
+                #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
+                if ( reduced_cov_chi2(matele[icorr,:,icut:-icut],cov_mat[icorr,:,icut:-icut,icut:-icut],axis=1) < 1 ).all():
                     chosen_cut = icut
                     break
             #then we average the data points on the plateau to find the matrix element
@@ -1695,6 +1703,17 @@ class run:
 def chi2(array,std_array,axis):
     avg = np.mean(array,axis=axis,keepdims=True)
     return np.sum( ((array-avg)/std_array)**2 , axis=axis)
+
+
+#auxiliary function to compute chi2 of a fit taking into account the covariant matrix
+def reduced_cov_chi2(array,cov_array,axis):
+    cov_inv = np.linalg.inv(cov_array)
+    avg = np.mean(array,axis=axis,keepdims=True)
+    deltas = array-avg
+
+    plateau_T = np.shape(array)[axis]
+
+    return np.einsum( 'ij,ij->i' , deltas, np.einsum('ijk,ik->ij',cov_inv,deltas) ) / plateau_T
 
 
 #Print a result in a nice format
