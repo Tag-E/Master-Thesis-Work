@@ -66,6 +66,16 @@ class run:
     #names of 5 operators
     op_names = ["VA","AV","SP","PS",r'T $\mathbf{\~{T}}$']
     op_names_simple = ["VA","AV","SP","PS",'TTtilda']
+    #names of 5 operators in the right basis
+    op_names_rot = ["VA+AV","VA-AV","-SP+PS","SP+PS",r'T $\mathbf{\~{T}}$']
+    op_names_rot_simple = ["VA+AV","VA-AV","-SP+PS","SP+PS",'TTtilda']
+
+    #rotation matrix to go into the right basis (VA,AV,SP,PS,T~T) -> (VA+AV,VA-AV,-SP+PS,SP+PS,T~T)
+    rot_mat = np.array([[1,  1,  0, 0, 0],
+                        [1, -1,  0, 0, 0],
+                        [0,  0, -1, 1, 0],
+                        [0,  0,  1, 1, 0],
+                        [0,  0,  0, 0, 1]],dtype=float)
 
     #conversion dictionaries
     noise_dict={0:"Z2",1:"Gauss",2:"U1",3:"One Component"}
@@ -1337,9 +1347,12 @@ class run:
         corr_z = self.all_2pCorr_z[:,:,:,:]
 
         #then we take the average over the noise vectors
-        corr_3p_navg = corr_3p.mean(axis=-1).mean(axis=-1)
+        corr_3p_navg_before_rot = corr_3p.mean(axis=-1).mean(axis=-1)
         corr_x_navg = corr_x.mean(axis=-1)
         corr_z_navg = corr_z.mean(axis=-1)
+
+        #rotate the navg 3p corr into the right basis
+        corr_3p_navg = np.einsum('ij,lmjn->lmin',self.rot_mat,corr_3p_navg_before_rot)
 
 
         #output info
@@ -1431,7 +1444,7 @@ class run:
             for iop in tqdm(range(self.noperators)):
 
                 #name of iop (enumerate is not used such that the loading bar is correctly visualized)
-                op_name = self.op_names[iop]
+                op_name = self.op_names_rot[iop]
 
 
                 #create figure and axis
@@ -1488,7 +1501,7 @@ class run:
 
                 #save figure
                 if save:
-                    fig_name = f"plot_matrixelement_{self.op_names_simple[iop]}_corr{icorr}_{self.run_name}.png"
+                    fig_name = f"plot_matrixelement_{self.op_names_rot_simple[iop]}_corr{icorr}_{self.run_name}.png"
                     plt.savefig(subdir+"/"+fig_name)
 
 
@@ -1499,7 +1512,7 @@ class run:
             for icorr in range(self.ncorr):
                 print(f"-Correlator {icorr}:\n")
                 for iop in range(self.noperators):
-                    print(present_result(f"-{self.op_names_simple[iop]}:{' '*(12-len(self.op_names_simple[iop]))}",self.matrix_element[icorr,iop],self.matrix_element_std[icorr,iop],digits,'')+"\n")
+                    print(present_result(f"-{self.op_names_rot_simple[iop]}:{' '*(12-len(self.op_names_rot_simple[iop]))}",self.matrix_element[icorr,iop],self.matrix_element_std[icorr,iop],digits,'')+"\n")
                 print(f"\n")
 
 
@@ -1516,7 +1529,7 @@ class run:
             with open(self.plot_dir+"matrix_element_result.txt","w") as file:
                 #first we write and header explaining how to read the file
                 file.write("#The file is structured as follows:\n")
-                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators} opertors, in the order {','.join(self.op_names_simple)},\n")
+                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators} opertors, in the order {','.join(self.op_names_rot_simple)},\n")
                 file.write("#column 0 is the mean, column 1 is the std\n")
                 #then loop over the correlators and the operators and we print all the matrix elements computed
                 for icorr in range(self.ncorr):
