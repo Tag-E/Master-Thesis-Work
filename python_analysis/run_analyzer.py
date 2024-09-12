@@ -1318,8 +1318,8 @@ class run:
 
 
     #method to plot separately the five operators for each correlator
-    def mat_ele_extraction(self,first_conf=0,last_conf=None,binsize=1,zoom_out=0,digits=1,
-                          show=False,save=True,verbose=True,result_save=True,subdir_name="mat_ele_extraction"):
+    def mat_ele_extraction(self,first_conf=0,last_conf=None,binsize=1,zoom_out=0,digits=1,max_chi2=1.0,
+                          show=False,save=True,verbose=True,result_save=True,show_xaxis=False,subdir_name="mat_ele_extraction"):
         
         #creation of subdir where to save plots
         subdir = self.plot_dir+"/"+subdir_name
@@ -1440,13 +1440,94 @@ class run:
             #first we determine which is the plateau region
             for icut in range(1,int(self.tvals/2)):
                 #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
-                if ( reduced_cov_chi2(matele[icorr,:,icut:-icut],cov_mat[icorr,:,icut:-icut,icut:-icut],axis=1) < 1 ).all():
+                if ( reduced_cov_chi2(matele[icorr,:,icut:-icut],cov_mat[icorr,:,icut:-icut,icut:-icut],axis=1) < max_chi2 ).all():
                     chosen_cut = icut
                     break
             #then we average the data points on the plateau to find the matrix element
             self.matrix_element[icorr,:] = np.asarray([np.mean(matele[icorr,iop,chosen_cut:-chosen_cut]) for iop in range(self.noperators) ])
             self.matrix_element_std[icorr,:] = np.asarray([np.sqrt( np.mean( matele_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) for iop in range(self.noperators) ])
 
+
+            #one plot with all the operators together
+
+            #output info
+            if verbose:
+                print(f"\nPlotting all the matrix elements in one graph ...\n")
+
+            #create figure and axis                 
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names_rot[iop]
+
+                #now we do the plot
+
+                #for the plateau region the cut is the one found by the chi2 method
+                cut = chosen_cut
+
+                #we plot first the hlines representing the plateau region
+                #ax.hlines(self.matrix_element[icorr,iop],cut,self.tvals-1-cut,color='red',label='Average',linewidth=4)
+                #ax.hlines(self.matrix_element[icorr,iop]+self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',linewidth=3)
+                #ax.hlines(self.matrix_element[icorr,iop]-self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',label=r'Average $\pm$ Standard Deviation',linewidth=3)
+
+
+                #for the other data we can use a wider range in the plot
+                cut = chosen_cut-zoom_out
+
+                
+    
+                #we plot the atrix element obtained from the jackknife
+                ax.errorbar(times[cut:-cut],matele[icorr,iop,cut:-cut],yerr=matele_std[icorr,iop,cut:-cut],
+                             marker='o',linestyle='solid',markersize=10,linewidth=0.8,elinewidth=2,label=op_name)
+                
+            if show_xaxis == True:
+                    ax.set_ylim(0,np.max(matele[icorr,:,cut:-cut]+matele_std[icorr,:,cut:-cut]))
+
+            #enable grid
+            ax.grid()
+
+            #set y label
+            ax.set_ylabel(r'$\left|\left<\widetilde{ps}|O|PS\right>\right|$',rotation=90,labelpad=20,fontsize=16)
+
+            #set legend
+            ax.legend(loc='right')
+
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(f'Matrix Element - Parity Odd Operators - Correlator {icorr}', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax.transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_matrixelement_alloperators_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+
+
+            #5 plots for the 5 operators
+
+            #output info
+            if verbose:
+                print(f"\nMaking one plot for each matrix element ...\n")
 
             #loop over the operators
             for iop in tqdm(range(self.noperators)):
@@ -1472,6 +1553,9 @@ class run:
 
                 #for the other data we can use a wider range in the plot
                 cut = chosen_cut-zoom_out
+
+                if show_xaxis == True:
+                    ax.set_ylim(0,np.max(matele[icorr,iop,cut:-cut]+matele_std[icorr,iop,cut:-cut]))
     
                 #we plot the atrix element obtained from the jackknife
                 ax.errorbar(times[cut:-cut],matele[icorr,iop,cut:-cut],yerr=matele_std[icorr,iop,cut:-cut],
