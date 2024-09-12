@@ -344,8 +344,12 @@ class run:
 
 
         #we also initilize the array that will be storing the final result about the matrix element
+        #..for Q+ operators
         self.matrix_element = np.zeros(shape=(self.ncorr,self.noperators),dtype=float)
         self.matrix_element_std = np.zeros(shape=(self.ncorr,self.noperators),dtype=float)
+        #..for Q- operators
+        self.matrix_elementM = np.zeros(shape=(self.ncorr,self.noperators),dtype=float)
+        self.matrix_element_stdM = np.zeros(shape=(self.ncorr,self.noperators),dtype=float)
 
 
         #initialization completed
@@ -1319,7 +1323,7 @@ class run:
 
     #method to plot separately the five operators for each correlator
     def mat_ele_extraction(self,first_conf=0,last_conf=None,binsize=1,zoom_out=0,digits=1,max_chi2=1.0,
-                          show=False,save=True,verbose=True,result_save=True,show_xaxis=False,subdir_name="mat_ele_extraction"):
+                          show=False,save=True,verbose=True,result_save=True,y_min=None,subdir_name="mat_ele_extraction"):
         
         #creation of subdir where to save plots
         subdir = self.plot_dir+"/"+subdir_name
@@ -1340,7 +1344,9 @@ class run:
         #we now choose the arrays that we have to use
         
         #for the 3 point the dimensions are: conf - piece - corr - op - tval - noise - noise
-        corr_3p = self.all_3pCorr[:,0,:,:,:,:,:] +  self.all_3pCorr[:,1,:,:,:,:,:] #we sum disconnected and connected piece
+        corr_3p = self.all_3pCorr[:,0,:,:,:,:,:] +  self.all_3pCorr[:,1,:,:,:,:,:] #we sum disconnected and connected piece (Q+ operators)
+        corrM_3p = self.all_3pCorr[:,0,:,:,:,:,:] -  self.all_3pCorr[:,1,:,:,:,:,:] #we sum disconnected and connected piece with a minus (Q- operators)
+
 
         #for the 2 point the dimensions are: conf - corr - tvals - noise
         corr_x = self.all_2pCorr_x[:,:,:,:] 
@@ -1348,11 +1354,13 @@ class run:
 
         #then we take the average over the noise vectors
         corr_3p_navg_before_rot = corr_3p.mean(axis=-1).mean(axis=-1)
+        corrM_3p_navg_before_rot = corrM_3p.mean(axis=-1).mean(axis=-1)
         corr_x_navg = corr_x.mean(axis=-1)
         corr_z_navg = corr_z.mean(axis=-1)
 
         #rotate the navg 3p corr into the right basis
         corr_3p_navg = np.einsum('ij,lmjn->lmin',self.rot_mat,corr_3p_navg_before_rot)
+        corrM_3p_navg = np.einsum('ij,lmjn->lmin',self.rot_mat,corrM_3p_navg_before_rot)
 
 
         #output info
@@ -1364,6 +1372,7 @@ class run:
 
         #1) first the creation of the resamples
         corr_3p_navg_resamp = np.asarray( [np.delete(corr_3p_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0) for iconf in range(first_conf,last_conf,binsize)] )
+        corrM_3p_navg_resamp = np.asarray( [np.delete(corrM_3p_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0) for iconf in range(first_conf,last_conf,binsize)] )
         corr_x_navg_resamp = np.asarray( [np.delete(corr_x_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0) for iconf in range(first_conf,last_conf,binsize)] )
         corr_z_navg_resamp = np.asarray( [np.delete(corr_z_navg, list(range(iconf,min(iconf+binsize,last_conf))) ,axis=0) for iconf in range(first_conf,last_conf,binsize)] )
         
@@ -1374,11 +1383,13 @@ class run:
 
         #we average over the gauge configurations
         corr_3p_navg_resamp_gavg = corr_3p_navg_resamp.mean(axis=1)
+        corrM_3p_navg_resamp_gavg = corrM_3p_navg_resamp.mean(axis=1)
         corr_x_navg_resamp_gavg = corr_x_navg_resamp.mean(axis=1)
         corr_z_navg_resamp_gavg = corr_z_navg_resamp.mean(axis=1)
 
         #with these arrays we can compute the replica of the matrix element for each subsample...
         matele_replicas = np.empty(shape=(nresamples,self.ncorr,self.noperators,self.tvals),dtype=float)
+        mateleM_replicas = np.empty(shape=(nresamples,self.ncorr,self.noperators,self.tvals),dtype=float)
         #...with the following loop
         #then we estimate the mass
         for ires in range(nresamples): #for each resample
@@ -1387,42 +1398,52 @@ class run:
                     for t in range(self.tvals): #and for each time
                         #we compute the matrix element using the formula
                         matele_replicas[ires,icorr,iop,t] = np.sqrt( ( corr_3p_navg_resamp_gavg[ires,icorr,iop,t] * np.conjugate( corr_3p_navg_resamp_gavg[ires,icorr,iop,self.tvals-1-t] ) / ( corr_z_navg_resamp_gavg[ires,icorr,1] * corr_x_navg_resamp_gavg[ires,icorr,self.tvals-2] ) ).real )
+                        mateleM_replicas[ires,icorr,iop,t] = np.sqrt( ( corrM_3p_navg_resamp_gavg[ires,icorr,iop,t] * np.conjugate( corrM_3p_navg_resamp_gavg[ires,icorr,iop,self.tvals-1-t] ) / ( corr_z_navg_resamp_gavg[ires,icorr,1] * corr_x_navg_resamp_gavg[ires,icorr,self.tvals-2] ) ).real )
         
         #3) we then compute the matrix element also on the whole dataset (non on the subsamples)
 
         #to do so we compute first the gauge averages on the whole dataset
         corr_3p_navg_gavg = corr_3p_navg.mean(axis=0)
+        corrM_3p_navg_gavg = corrM_3p_navg.mean(axis=0)
         corr_x_navg_gavg = corr_x_navg.mean(axis=0)
         corr_z_navg_gavg = corr_z_navg.mean(axis=0)
 
         #the matrix element on the whole dataset is
         matele_total = np.empty(shape=(self.ncorr,self.noperators,self.tvals),dtype=float)
+        mateleM_total = np.empty(shape=(self.ncorr,self.noperators,self.tvals),dtype=float)
         #..and we compute it with the following loop
         for icorr in range(self.ncorr): #for each correlator
             for iop in range(self.noperators): #for each operator
                 for t in range(self.tvals): #and for each time
                     #we use the formula of the matrix element
                     matele_total[icorr,iop,t] = np.sqrt( ( corr_3p_navg_gavg[icorr,iop,t] * np.conjugate( corr_3p_navg_gavg[icorr,iop,self.tvals-1-t] ) / ( corr_z_navg_gavg[icorr,1] * corr_x_navg_gavg[icorr,self.tvals-2] ) ).real )
+                    mateleM_total[icorr,iop,t] = np.sqrt( ( corrM_3p_navg_gavg[icorr,iop,t] * np.conjugate( corrM_3p_navg_gavg[icorr,iop,self.tvals-1-t] ) / ( corr_z_navg_gavg[icorr,1] * corr_x_navg_gavg[icorr,self.tvals-2] ) ).real )
 
         #4) then we compute the estimate, the bias and the std according to the jackknife method
 
         #the estimate is the average over the resamples
         matele_estimate = np.mean(matele_replicas,axis=0)
+        mateleM_estimate = np.mean(mateleM_replicas,axis=0)
 
         #the bias is the following difference between the mean of the replicates and the mean on the whole dataset
         bias = (nresamples-1) * (matele_estimate-matele_total)
+        biasM = (nresamples-1) * (mateleM_estimate-mateleM_total)
 
         #the std is given by the following formula (variance of replicates times n-1)
         matele_std = np.sqrt( (nresamples-1)/nresamples * np.sum( (matele_replicas - matele_estimate)**2,axis=0 ) )
+        mateleM_std = np.sqrt( (nresamples-1)/nresamples * np.sum( (mateleM_replicas - mateleM_estimate)**2,axis=0 ) )
 
         #then we correct the estimate for the bias
         matele = matele_estimate-bias
+        mateleM = mateleM_estimate-biasM
 
         #compute the covariance matrix
         cov_mat = np.empty(shape=(self.ncorr,self.noperators,self.tvals,self.tvals),dtype=float)
+        cov_matM = np.empty(shape=(self.ncorr,self.noperators,self.tvals,self.tvals),dtype=float)
         for t1 in range(self.tvals):
             for t2 in range(self.tvals):
                 cov_mat[:,:,t1,t2] = (nresamples-1)/nresamples * np.sum( (matele_replicas[:,:,:,t1] - matele_estimate[:,:,t1]) * (matele_replicas[:,:,:,t2] - matele_estimate[:,:,t2]),axis=0 )
+                cov_matM[:,:,t1,t2] = (nresamples-1)/nresamples * np.sum( (mateleM_replicas[:,:,:,t1] - mateleM_estimate[:,:,t1]) * (mateleM_replicas[:,:,:,t2] - mateleM_estimate[:,:,t2]),axis=0 )
 
 
 
@@ -1435,6 +1456,9 @@ class run:
             #output info
             if verbose:
                 print(f"\nMaking plots for the correlator number {icorr} ...\n")
+
+            
+            #first for the Q+ operators
 
 
             #first we determine which is the plateau region
@@ -1452,10 +1476,12 @@ class run:
 
             #output info
             if verbose:
-                print(f"\nPlotting all the matrix elements in one graph ...\n")
+                print(f"\nPlotting all the Q+ matrix elements in one graph ...\n")
 
             #create figure and axis                 
             fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+            colors = ["red","blue","orange","green","purple"]
 
             #loop over the operators
             for iop in tqdm(range(self.noperators)):
@@ -1469,9 +1495,9 @@ class run:
                 cut = chosen_cut
 
                 #we plot first the hlines representing the plateau region
-                #ax.hlines(self.matrix_element[icorr,iop],cut,self.tvals-1-cut,color='red',label='Average',linewidth=4)
-                #ax.hlines(self.matrix_element[icorr,iop]+self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',linewidth=3)
-                #ax.hlines(self.matrix_element[icorr,iop]-self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',label=r'Average $\pm$ Standard Deviation',linewidth=3)
+                ax.hlines(self.matrix_element[icorr,iop],cut,self.tvals-1-cut,color=colors[iop],linewidth=4,alpha=0.8)
+                ax.hlines(self.matrix_element[icorr,iop]+self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,linestyle='dashed',linewidth=3,color=colors[iop],alpha=0.5)
+                ax.hlines(self.matrix_element[icorr,iop]-self.matrix_element_std[icorr,iop],cut,self.tvals-1-cut,linestyle='dashed',linewidth=3,color=colors[iop],alpha=0.5)
 
 
                 #for the other data we can use a wider range in the plot
@@ -1481,10 +1507,10 @@ class run:
     
                 #we plot the atrix element obtained from the jackknife
                 ax.errorbar(times[cut:-cut],matele[icorr,iop,cut:-cut],yerr=matele_std[icorr,iop,cut:-cut],
-                             marker='o',linestyle='solid',markersize=10,linewidth=0.8,elinewidth=2,label=op_name)
+                             marker='o',linestyle='--',color=colors[iop],markersize=10,linewidth=0.6,alpha=0.8,elinewidth=2,label=op_name)
                 
-            if show_xaxis == True:
-                    ax.set_ylim(0,np.max(matele[icorr,:,cut:-cut]+matele_std[icorr,:,cut:-cut]))
+            #with all the operators together the x axis is shown by default
+            ax.set_ylim(0,np.max(matele[icorr,:,cut:-cut]+matele_std[icorr,:,cut:-cut]))
 
             #enable grid
             ax.grid()
@@ -1508,7 +1534,7 @@ class run:
             plt.xlabel('Time [lattice units]',fontsize=16)
 
             #set title
-            plt.suptitle(f'Matrix Element - Parity Odd Operators - Correlator {icorr}', fontsize=25,y=0.98)
+            plt.suptitle(r"Matrix Element - $\mathcal{Q}^+$"+f' Operators - Correlator {icorr}', fontsize=25,y=0.98)
 
             #Display text box with frelevant parameters outside the plot
             props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
@@ -1527,7 +1553,7 @@ class run:
 
             #output info
             if verbose:
-                print(f"\nMaking one plot for each matrix element ...\n")
+                print(f"\nMaking one plot for each Q+ matrix element ...\n")
 
             #loop over the operators
             for iop in tqdm(range(self.noperators)):
@@ -1554,8 +1580,10 @@ class run:
                 #for the other data we can use a wider range in the plot
                 cut = chosen_cut-zoom_out
 
-                if show_xaxis == True:
-                    ax.set_ylim(0,np.max(matele[icorr,iop,cut:-cut]+matele_std[icorr,iop,cut:-cut]))
+                #show x axis
+                if y_min is not None:
+                    ax.set_ylim(y_min*np.min(matele[icorr,iop,cut:-cut]+matele_std[icorr,iop,cut:-cut]),np.max(matele[icorr,iop,cut:-cut]+matele_std[icorr,iop,cut:-cut]))
+                
     
                 #we plot the atrix element obtained from the jackknife
                 ax.errorbar(times[cut:-cut],matele[icorr,iop,cut:-cut],yerr=matele_std[icorr,iop,cut:-cut],
@@ -1583,7 +1611,7 @@ class run:
                 plt.xlabel('Time [lattice units]',fontsize=16)
 
                 #set title
-                plt.suptitle(f'Matrix Element - Operator {op_name} - Correlator {icorr}', fontsize=25,y=0.98)
+                plt.suptitle(r'$\mathcal{Q}^+$'+f' Matrix Element - Operator {op_name} - Correlator {icorr}', fontsize=25,y=0.98)
 
                 #Display text box with frelevant parameters outside the plot
                 props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
@@ -1597,14 +1625,189 @@ class run:
                     plt.savefig(subdir+"/"+fig_name)
 
 
+
+
+            #then for the Q- operators
+
+
+            #first we determine which is the plateau region
+            for icut in range(1,int(self.tvals/2)):
+                #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
+                if ( reduced_cov_chi2(mateleM[icorr,:,icut:-icut],cov_matM[icorr,:,icut:-icut,icut:-icut],axis=1) < max_chi2 ).all():
+                    chosen_cut = icut
+                    break
+            #then we average the data points on the plateau to find the matrix element
+            self.matrix_elementM[icorr,:] = np.asarray([np.mean(mateleM[icorr,iop,chosen_cut:-chosen_cut]) for iop in range(self.noperators) ])
+            self.matrix_element_stdM[icorr,:] = np.asarray([np.sqrt( np.mean( mateleM_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) for iop in range(self.noperators) ])
+
+
+            #one plot with all the operators together
+
+            #output info
+            if verbose:
+                print(f"\nPlotting all the Q- matrix elements in one graph ...\n")
+
+            #create figure and axis                 
+            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+            colors = ["red","blue","orange","green","purple"]
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names_rot[iop]
+
+                #now we do the plot
+
+                #for the plateau region the cut is the one found by the chi2 method
+                cut = chosen_cut
+
+                #we plot first the hlines representing the plateau region
+                ax.hlines(self.matrix_elementM[icorr,iop],cut,self.tvals-1-cut,color=colors[iop],linewidth=4,alpha=0.8)
+                ax.hlines(self.matrix_elementM[icorr,iop]+self.matrix_element_stdM[icorr,iop],cut,self.tvals-1-cut,linestyle='dashed',linewidth=3,color=colors[iop],alpha=0.5)
+                ax.hlines(self.matrix_elementM[icorr,iop]-self.matrix_element_stdM[icorr,iop],cut,self.tvals-1-cut,linestyle='dashed',linewidth=3,color=colors[iop],alpha=0.5)
+
+
+                #for the other data we can use a wider range in the plot
+                cut = chosen_cut-zoom_out
+
+                
+    
+                #we plot the atrix element obtained from the jackknife
+                ax.errorbar(times[cut:-cut],mateleM[icorr,iop,cut:-cut],yerr=mateleM_std[icorr,iop,cut:-cut],
+                             marker='o',linestyle='--',color=colors[iop],markersize=10,linewidth=0.6,alpha=0.8,elinewidth=2,label=op_name)
+                
+            #with all the operators together the x axis is shown by default
+            ax.set_ylim(0,np.max(mateleM[icorr,:,cut:-cut]+mateleM_std[icorr,:,cut:-cut]))
+
+            #enable grid
+            ax.grid()
+
+            #set y label
+            ax.set_ylabel(r'$\left|\left<\widetilde{ps}|O|PS\right>\right|$',rotation=90,labelpad=20,fontsize=16)
+
+            #set legend
+            ax.legend(loc='right')
+
+
+            #adjust subplot spacing
+            plt.subplots_adjust(left=0.04,
+                                bottom=0.05, 
+                                right=0.9, 
+                                top=0.9, 
+                                wspace=0.4, 
+                                hspace=0.6)
+
+            #set x label
+            plt.xlabel('Time [lattice units]',fontsize=16)
+
+            #set title
+            plt.suptitle(r"Matrix Element - $\mathcal{Q}^-$"+f' Operators - Correlator {icorr}', fontsize=25,y=0.98)
+
+            #Display text box with frelevant parameters outside the plot
+            props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+            # place the text box in upper left in axes coords
+            plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax.transAxes, fontsize=14,
+                    verticalalignment='top', bbox=props)
+
+            #save figure
+            if save:
+                fig_name = f"plot_matrixelement_alloperatorsM_corr{icorr}_{self.run_name}.png"
+                plt.savefig(subdir+"/"+fig_name)
+
+
+
+            #5 plots for the 5 operators
+
+            #output info
+            if verbose:
+                print(f"\nMaking one plot for each Q- matrix element ...\n")
+
+            #loop over the operators
+            for iop in tqdm(range(self.noperators)):
+
+                #name of iop (enumerate is not used such that the loading bar is correctly visualized)
+                op_name = self.op_names_rot[iop]
+
+
+                #create figure and axis
+                fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(32, 14))
+
+
+                #now we do the plot
+
+                #for the plateau region the cut is the one found by the chi2 method
+                cut = chosen_cut
+
+                #we plot first the hlines representing the plateau region
+                ax.hlines(self.matrix_elementM[icorr,iop],cut,self.tvals-1-cut,color='red',label='Average',linewidth=4)
+                ax.hlines(self.matrix_elementM[icorr,iop]+self.matrix_element_stdM[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',linewidth=3)
+                ax.hlines(self.matrix_elementM[icorr,iop]-self.matrix_element_stdM[icorr,iop],cut,self.tvals-1-cut,color='orange',linestyle='dashed',label=r'Average $\pm$ Standard Deviation',linewidth=3)
+
+
+                #for the other data we can use a wider range in the plot
+                cut = chosen_cut-zoom_out
+
+                #show x axis
+                if y_min is not None:
+                    ax.set_ylim(y_min*np.min(mateleM[icorr,iop,cut:-cut]+mateleM_std[icorr,iop,cut:-cut]),np.max(mateleM[icorr,iop,cut:-cut]+mateleM_std[icorr,iop,cut:-cut]))
+                
+    
+                #we plot the atrix element obtained from the jackknife
+                ax.errorbar(times[cut:-cut],mateleM[icorr,iop,cut:-cut],yerr=mateleM_std[icorr,iop,cut:-cut],
+                             marker='o',linestyle='solid',markersize=10,linewidth=0.8,elinewidth=2,label='Jackknife Estimates')
+
+                #enable grid
+                ax.grid()
+
+                #set y label
+                ax.set_ylabel(r'$\left|\left<\widetilde{ps}|O|PS\right>\right|$',rotation=90,labelpad=20,fontsize=16)
+
+                #set legend
+                ax.legend(loc='right')
+
+
+                #adjust subplot spacing
+                plt.subplots_adjust(left=0.04,
+                                    bottom=0.05, 
+                                    right=0.9, 
+                                    top=0.9, 
+                                    wspace=0.4, 
+                                    hspace=0.6)
+
+                #set x label
+                plt.xlabel('Time [lattice units]',fontsize=16)
+
+                #set title
+                plt.suptitle(r'$\mathcal{Q}^-$'+f' Matrix Element - Operator {op_name} - Correlator {icorr}', fontsize=25,y=0.98)
+
+                #Display text box with frelevant parameters outside the plot
+                props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+                # place the text box in upper left in axes coords
+                plt.text(1.01, 0.95, self.text_infobox[icorr], transform=ax.transAxes, fontsize=14,
+                        verticalalignment='top', bbox=props)
+
+                #save figure
+                if save:
+                    fig_name = f"plot_matrixelementM_{self.op_names_rot_simple[iop]}_corr{icorr}_{self.run_name}.png"
+                    plt.savefig(subdir+"/"+fig_name)
+    
+
+
+
         #output info
         if verbose:
             print("\nAll plots done!\n")
             print("\nThe final result for the matrix elements are:\n")
             for icorr in range(self.ncorr):
                 print(f"-Correlator {icorr}:\n")
+                print("  Q+ :\n")
                 for iop in range(self.noperators):
                     print(present_result(f"-{self.op_names_rot_simple[iop]}:{' '*(12-len(self.op_names_rot_simple[iop]))}",self.matrix_element[icorr,iop],self.matrix_element_std[icorr,iop],digits,'')+"\n")
+                print("  Q- :\n")
+                for iop in range(self.noperators):
+                    print(present_result(f"-{self.op_names_rot_simple[iop]}:{' '*(12-len(self.op_names_rot_simple[iop]))}",self.matrix_elementM[icorr,iop],self.matrix_element_stdM[icorr,iop],digits,'')+"\n")
                 print(f"\n")
 
 
@@ -1621,12 +1824,14 @@ class run:
             with open(self.plot_dir+"matrix_element_result.txt","w") as file:
                 #first we write and header explaining how to read the file
                 file.write("#The file is structured as follows:\n")
-                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators} opertors, in the order {','.join(self.op_names_rot_simple)},\n")
+                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators}x2 operators, in the order {','.join(self.op_names_rot_simple)}, first all the Q+, then alle the Q-\n")
                 file.write("#column 0 is the mean, column 1 is the std\n")
                 #then loop over the correlators and the operators and we print all the matrix elements computed
                 for icorr in range(self.ncorr):
                     for iop in range(self.noperators):
                         file.write(f"{self.matrix_element[icorr,iop]} {self.matrix_element_std[icorr,iop]}\n")
+                    for iop in range(self.noperators):
+                        file.write(f"{self.matrix_elementM[icorr,iop]} {self.matrix_element_stdM[icorr,iop]}\n")
 
 
     #method for the analysis of the std vs the binsize (TO DO: HANDLE WARNINGS !!!)
