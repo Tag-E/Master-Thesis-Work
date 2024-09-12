@@ -2544,7 +2544,8 @@ static void correlators(void)
 
 
          /*********computation of 2 points corr with source in x**********/
-         mul_GAMMAdag_g5(xi_A[inoise_A],typeB[icorr],G1_g5_xi_A); /*G1_g5_xi_A set to be GAMMA_B^dag gamma5 xi_A*/
+         /*mul_GAMMAdag_g5(xi_A[inoise_A],typeB[icorr],G1_g5_xi_A);*/ /*G1_g5_xi_A set to be GAMMA_B^dag gamma5 xi_A*/
+         mul_GAMMAdag_g5(xi_A[inoise_A],typeA[icorr],G1_g5_xi_A); /*G1_g5_xi_A set to be GAMMA_A^dag gamma5 xi_A*   --> this is the right 2p function to consider to extrac the matrix element/
          /*loop over spacetime to perorm the computation*/
          for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
          {
@@ -2673,7 +2674,8 @@ static void correlators(void)
 
 
          /*********computation of 2 points corr with source in z**********/
-         mul_GAMMAdag_g5(xi_B,typeA[icorr],G2_g5_xi_B); /*G2_g5_xi_B set to be GAMMA_A^dag gamma5 xi_B*/
+         /*mul_GAMMAdag_g5(xi_B,typeA[icorr],G2_g5_xi_B);*/ /*G2_g5_xi_B set to be GAMMA_A^dag gamma5 xi_B*/
+         mul_GAMMAdag_g5(xi_B,typeB[icorr],G2_g5_xi_B); /*G2_g5_xi_B set to be GAMMA_B^dag gamma5 xi_B  --> this is the correct 2p function to consider for the exraction of the matrix element*/
          /*loop over spacetime to perorm the computation*/
          for (y0=0;y0<L0;y0++) /*loop over the time values y0*/
          {
