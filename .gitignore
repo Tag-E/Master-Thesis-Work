@@ -39,3 +39,4 @@ python_analysis/matrix_element_second_analysis/
 python_analysis/*.png
 python_analysis/__pycache__
 python_analysis/__pycache__/*.pyc
+python_analysis/.ipynb_checkpoints/
