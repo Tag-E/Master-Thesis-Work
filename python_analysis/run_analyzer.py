@@ -1461,15 +1461,19 @@ class run:
             #first for the Q+ operators
 
 
-            #first we determine which is the plateau region
-            for icut in range(1,int(self.tvals/2)):
-                #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
-                if ( reduced_cov_chi2(matele[icorr,:,icut:-icut],cov_mat[icorr,:,icut:-icut,icut:-icut],axis=1) < max_chi2 ).all():
-                    chosen_cut = icut
-                    break
-            #then we average the data points on the plateau to find the matrix element
-            self.matrix_element[icorr,:] = np.asarray([np.mean(matele[icorr,iop,chosen_cut:-chosen_cut]) for iop in range(self.noperators) ])
-            self.matrix_element_std[icorr,:] = np.asarray([np.sqrt( np.mean( matele_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) for iop in range(self.noperators) ])
+            chosen_cuts = []
+
+            #first we determine which is the plateau region for each operator
+            for iop in range(self.noperators):
+                for icut in range(1,int(self.tvals/2)):
+                    #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
+                    if reduced_cov_chi2(matele[icorr,:,icut:-icut],cov_mat[icorr,:,icut:-icut,icut:-icut],axis=1)[iop] < max_chi2:
+                        chosen_cut = icut
+                        chosen_cuts.append(chosen_cut)
+                        break
+                #then we average the data points on the plateau to find the matrix element
+                self.matrix_element[icorr,iop] = np.mean(matele[icorr,iop,chosen_cut:-chosen_cut]) 
+                self.matrix_element_std[icorr,iop] = np.sqrt( np.mean( matele_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) 
 
 
             #one plot with all the operators together
@@ -1492,7 +1496,7 @@ class run:
                 #now we do the plot
 
                 #for the plateau region the cut is the one found by the chi2 method
-                cut = chosen_cut
+                cut = chosen_cuts[iop]
 
                 #we plot first the hlines representing the plateau region
                 ax.hlines(self.matrix_element[icorr,iop],cut,self.tvals-1-cut,color=colors[iop],linewidth=4,alpha=0.8)
@@ -1501,7 +1505,7 @@ class run:
 
 
                 #for the other data we can use a wider range in the plot
-                cut = chosen_cut-zoom_out
+                cut = np.min(np.array(chosen_cuts)-zoom_out)
 
                 
     
@@ -1569,7 +1573,7 @@ class run:
                 #now we do the plot
 
                 #for the plateau region the cut is the one found by the chi2 method
-                cut = chosen_cut
+                cut = chosen_cuts[iop]
 
                 #we plot first the hlines representing the plateau region
                 ax.hlines(self.matrix_element[icorr,iop],cut,self.tvals-1-cut,color='red',label='Average',linewidth=4)
@@ -1578,7 +1582,7 @@ class run:
 
 
                 #for the other data we can use a wider range in the plot
-                cut = chosen_cut-zoom_out
+                cut = chosen_cuts[iop]-zoom_out
 
                 #show x axis
                 if y_min is not None:
@@ -1629,16 +1633,19 @@ class run:
 
             #then for the Q- operators
 
+            chosen_cuts=[]
 
-            #first we determine which is the plateau region
-            for icut in range(1,int(self.tvals/2)):
-                #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
-                if ( reduced_cov_chi2(mateleM[icorr,:,icut:-icut],cov_matM[icorr,:,icut:-icut,icut:-icut],axis=1) < max_chi2 ).all():
-                    chosen_cut = icut
-                    break
-            #then we average the data points on the plateau to find the matrix element
-            self.matrix_elementM[icorr,:] = np.asarray([np.mean(mateleM[icorr,iop,chosen_cut:-chosen_cut]) for iop in range(self.noperators) ])
-            self.matrix_element_stdM[icorr,:] = np.asarray([np.sqrt( np.mean( mateleM_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) for iop in range(self.noperators) ])
+            #first we determine which is the plateau region for each operator
+            for iop in range(self.noperators):
+                for icut in range(1,int(self.tvals/2)):
+                    #if (chi2(matele[icorr,:,icut:-icut],matele_std[icorr,:,icut:-icut],axis=1) < np.shape(matele[icorr,:,icut:-icut])[1]).all():
+                    if reduced_cov_chi2(mateleM[icorr,:,icut:-icut],cov_matM[icorr,:,icut:-icut,icut:-icut],axis=1)[iop] < max_chi2:
+                        chosen_cut = icut
+                        chosen_cuts.append(chosen_cut)
+                        break
+                #then we average the data points on the plateau to find the matrix element
+                self.matrix_elementM[icorr,iop] = np.mean(mateleM[icorr,iop,chosen_cut:-chosen_cut]) 
+                self.matrix_element_stdM[icorr,iop] = np.sqrt( np.mean( mateleM_std[icorr,iop,chosen_cut:-chosen_cut]**2 ) ) 
 
 
             #one plot with all the operators together
@@ -1661,7 +1668,7 @@ class run:
                 #now we do the plot
 
                 #for the plateau region the cut is the one found by the chi2 method
-                cut = chosen_cut
+                cut = chosen_cuts[iop]
 
                 #we plot first the hlines representing the plateau region
                 ax.hlines(self.matrix_elementM[icorr,iop],cut,self.tvals-1-cut,color=colors[iop],linewidth=4,alpha=0.8)
@@ -1670,7 +1677,7 @@ class run:
 
 
                 #for the other data we can use a wider range in the plot
-                cut = chosen_cut-zoom_out
+                cut = np.min(np.array(chosen_cuts)-zoom_out)
 
                 
     
@@ -1738,7 +1745,7 @@ class run:
                 #now we do the plot
 
                 #for the plateau region the cut is the one found by the chi2 method
-                cut = chosen_cut
+                cut = chosen_cuts[iop]
 
                 #we plot first the hlines representing the plateau region
                 ax.hlines(self.matrix_elementM[icorr,iop],cut,self.tvals-1-cut,color='red',label='Average',linewidth=4)
@@ -1747,7 +1754,7 @@ class run:
 
 
                 #for the other data we can use a wider range in the plot
-                cut = chosen_cut-zoom_out
+                cut = chosen_cuts[iop]-zoom_out
 
                 #show x axis
                 if y_min is not None:
@@ -1824,7 +1831,7 @@ class run:
             with open(self.plot_dir+"matrix_element_result.txt","w") as file:
                 #first we write and header explaining how to read the file
                 file.write("#The file is structured as follows:\n")
-                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators}x2 operators, in the order {','.join(self.op_names_rot_simple)}, first all the Q+, then alle the Q-\n")
+                file.write(f"#ncorr={self.ncorr} blocks, each with the {self.noperators}x2 operators, in the order {','.join(self.op_names_rot_simple)}, first all the Q+, then all the Q-\n")
                 file.write("#column 0 is the mean, column 1 is the std\n")
                 #then loop over the correlators and the operators and we print all the matrix elements computed
                 for icorr in range(self.ncorr):
