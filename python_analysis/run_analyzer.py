@@ -2737,48 +2737,48 @@ class run_2p:
         #10.4) we do the actual plot
 
         #create figure and axis
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(23, 11.5))
+        fig, ax = plt.subplots(nrows=1, ncols=1, dpi=1200)#figsize=(23, 11.5))
 
         #range of the plot of linfit
         mu_range = np.linspace(0,np.max(self.mu1)*1.1,100)
 
         #m2 and m2t from effective formula
-        ax.errorbar(self.mus,m2_eff,yerr=m2_eff_std,marker='o',linewidth=0,elinewidth=6.0,label=r"$m^2$ (effective mass)",color='royalblue',alpha=0.6,markersize=10)
-        ax.plot(mu_range,M2_eff_linfit,linewidth =2.7,linestyle='dashed',color='royalblue',alpha=0.6)
-        ax.errorbar(self.mus,m2t_eff,yerr=m2t_eff_std,marker='s',linewidth=0,elinewidth=6.0,label=r"$\widetilde{m^2}$ (effective mass)",color='darkblue',alpha=0.6,markersize=10)
-        ax.plot(mu_range,M2t_eff_linfit,linewidth =2.7,linestyle='dashed',color='blue',alpha=0.6)
+        ax.errorbar(self.mus,m2_eff,yerr=m2_eff_std,marker='o',linewidth=0,elinewidth=1.1,label=r"$m^2$ (effective mass)",color='royalblue',alpha=0.6,markersize=5)
+        ax.plot(mu_range,M2_eff_linfit,linewidth =0.7,linestyle='dashed',color='royalblue',alpha=0.6)
+        ax.errorbar(self.mus,m2t_eff,yerr=m2t_eff_std,marker='s',linewidth=0,elinewidth=1.1,label=r"$\widetilde{m^2}$ (effective mass)",color='darkblue',alpha=0.6,markersize=5)
+        ax.plot(mu_range,M2t_eff_linfit,linewidth =0.7,linestyle='dashed',color='blue',alpha=0.6)
 
         #m2 and m2t from fit
-        ax.errorbar(self.mus,m2_fit,m2_fit_std,marker='o',linewidth=0,elinewidth=6.0,label=r"$m^2$ (from sinh fit)",color='limegreen',alpha=0.6,markersize=10)
-        ax.plot(mu_range,M2_fit_linfit,linewidth =2.7,linestyle='dashed',color='limegreen',alpha=0.6)
-        ax.errorbar(self.mus,m2t_fit,m2t_fit_std,marker='s',linewidth=0,elinewidth=6.0,label=r"$\widetilde{m^2}$ (from sinh fit)",color='darkgreen',alpha=0.6,markersize=10)
-        ax.plot(mu_range,M2t_fit_linfit,linewidth =2.7,linestyle='dashed',color='darkgreen',alpha=0.6)
+        ax.errorbar(self.mus,m2_fit,m2_fit_std,marker='o',linewidth=0,elinewidth=1.1,label=r"$m^2$ (from sinh fit)",color='limegreen',alpha=0.6,markersize=5)
+        ax.plot(mu_range,M2_fit_linfit,linewidth =0.7,linestyle='dashed',color='limegreen',alpha=0.6)
+        ax.errorbar(self.mus,m2t_fit,m2t_fit_std,marker='s',linewidth=0,elinewidth=1.1,label=r"$\widetilde{m^2}$ (from sinh fit)",color='darkgreen',alpha=0.6,markersize=5)
+        ax.plot(mu_range,M2t_fit_linfit,linewidth =0.7,linestyle='dashed',color='darkgreen',alpha=0.6)
 
-        ax.plot(self.mus,m2_true,marker='o',linewidth=0,label=r"$m^2$ from reference",color='red',alpha=0.6,markersize=4)
-        ax.plot(mu_range,fit_reference,linewidth =2.7,linestyle='dashed',color='red',alpha=0.6)
+        ax.plot(self.mus,m2_true,marker='o',linewidth=0,label=r"$m^2$ from reference",color='red',alpha=0.6,markersize=5)
+        ax.plot(mu_range,fit_reference,linewidth =0.7,linestyle='dashed',color='red',alpha=0.6)
 
          #enable grid
         ax.grid()
 
         #set y label
-        ax.set_ylabel(r"$m^2$",rotation=90,labelpad=20,fontsize=16)
+        ax.set_ylabel(r"$m^2$",rotation=90)#,labelpad=20)#,fontsize=16)
         
         #set legend
-        ax.legend(fontsize=16)
+        ax.legend()#(fontsize=16)
         
         #adjust subplot spacing
-        plt.subplots_adjust(left=0.04,
-                            bottom=0.05, 
-                            right=0.9, 
-                            top=0.9, 
-                            wspace=0.4, 
-                            hspace=0.6)
+        #plt.subplots_adjust(left=0.04,
+        #                    bottom=0.05, 
+        #                    right=0.9, 
+        #                    top=0.9, 
+        #                    wspace=0.4, 
+        #                    hspace=0.6)
         
         #set x label
-        plt.xlabel(r'$\mu$ [lattice units]',fontsize=16)
+        plt.xlabel(r'$\mu$ [lattice units]')#,fontsize=16)
         
         #set title
-        plt.suptitle(r"$m^2$ vs $\mu$ Scaling", fontsize=25,y=0.98)
+        plt.suptitle(r"$m^2$ vs $\mu$ Scaling")#,y=0.98)#, fontsize=25)
         
         #save figure
         if save:
