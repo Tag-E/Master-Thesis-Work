@@ -395,7 +395,7 @@ class run:
             print(f" - z0 = {self.z0[i]}\n\n\n")
 
     #method for the analysis of the std vs the binsize (TO DO: HANDLE WARNINGS !!!)
-    def std_study(self,first_conf=0,last_conf=None,step_conf=1,times=None,
+    def std_study(self,first_conf=0,last_conf=None,step_conf=1,times=None,reduce_deltas=0,
                   show=False,save=True,verbose=True,subdir_name="stdAnalysis_plots"):
 
         #creation of subdir where to save plots
@@ -423,7 +423,7 @@ class run:
         correlators_navg = correlators_navg[:,0,:,:,:] + correlators_navg[:,1,:,:,:]
 
         #choice of binning: divisors of number of configurations
-        deltaList = [delta for delta in divisors(new_nconf) if delta < new_nconf/10]
+        deltaList = [delta for delta in divisors(new_nconf) if delta < new_nconf/10 - reduce_deltas]
 
         #output info
         if verbose:
