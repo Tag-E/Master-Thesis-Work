@@ -2183,7 +2183,8 @@ class run_2p:
         self.text_infobox = []
         for icorr in range(self.ncorr): #a different infobox for each correlator
             self.text_infobox.append( '\n'.join((
-                 'Correlator %d parameters:' % (icorr),
+                 #'Correlator %d parameters:' % (icorr),
+                 'Correlator parameters:',
                  '           ',
                 r'$k_1$=%.9f ' % (self.k1[icorr] ),
                 r'$k_2$=%.9f ' % (self.k2[icorr] ),
@@ -2195,8 +2196,8 @@ class run_2p:
                 r'$\Gamma_2$=' + self.latex_dirac_dict[self.type2[icorr]],
                     '           ',
                 r'$x_0$=%d' % self.x0[icorr],
-                '           ',
-                r'$isreal$=%d' % self.isreal[icorr],
+                #'           ',
+                #r'$isreal$=%d' % self.isreal[icorr],
                  '           ',
                  '           ',
                  '           ',
@@ -2749,12 +2750,12 @@ class run_2p:
         ax.plot(mu_range,M2t_eff_linfit,linewidth =0.7,linestyle='dashed',color='blue',alpha=0.6)
 
         #m2 and m2t from fit
-        ax.errorbar(self.mus,m2_fit,m2_fit_std,marker='o',linewidth=0,elinewidth=1.1,label=r"$m^2$ (from sinh fit)",color='limegreen',alpha=0.6,markersize=5)
-        ax.plot(mu_range,M2_fit_linfit,linewidth =0.7,linestyle='dashed',color='limegreen',alpha=0.6)
-        ax.errorbar(self.mus,m2t_fit,m2t_fit_std,marker='s',linewidth=0,elinewidth=1.1,label=r"$\widetilde{m^2}$ (from sinh fit)",color='darkgreen',alpha=0.6,markersize=5)
-        ax.plot(mu_range,M2t_fit_linfit,linewidth =0.7,linestyle='dashed',color='darkgreen',alpha=0.6)
+        #ax.errorbar(self.mus,m2_fit,m2_fit_std,marker='o',linewidth=0,elinewidth=1.1,label=r"$m^2$ (from sinh fit)",color='limegreen',alpha=0.6,markersize=5)
+        #ax.plot(mu_range,M2_fit_linfit,linewidth =0.7,linestyle='dashed',color='limegreen',alpha=0.6)
+        #ax.errorbar(self.mus,m2t_fit,m2t_fit_std,marker='s',linewidth=0,elinewidth=1.1,label=r"$\widetilde{m^2}$ (from sinh fit)",color='darkgreen',alpha=0.6,markersize=5)
+        #ax.plot(mu_range,M2t_fit_linfit,linewidth =0.7,linestyle='dashed',color='darkgreen',alpha=0.6)
 
-        ax.plot(self.mus,m2_true,marker='o',linewidth=0,label=r"$m^2$ from reference",color='red',alpha=0.6,markersize=5)
+        ax.plot(self.mus,m2_true,marker='o',linewidth=0,label=r"$m^2$ from reference",color='red',alpha=0.9,markersize=5.6)
         ax.plot(mu_range,fit_reference,linewidth =0.7,linestyle='dashed',color='red',alpha=0.6)
 
          #enable grid
